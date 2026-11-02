@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: identity-service
+  datasource:
+    url: jdbc:mysql://localhost:3307/identity_db?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
+    username: cosync
+    password: cosync
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+
+server:
+  port: 8081

@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: gateway          # identity-service / wallet-service
+server:
+  port: 8080               # 8081 / 8082

@@ -1,0 +1,513 @@
+openapi: 3.0.3
+info:
+  title: CO-SYNC Identity API
+  version: 0.1.0
+  description: |
+    สัญญา API ของ identity-service (Sprint 0)
+    Frontend เรียกผ่าน Gateway ที่ /api/... เสมอ
+    Login สำเร็จแล้ว Gateway/Identity จะตั้ง cookie `access_token` (HttpOnly) ให้เอง
+servers:
+  - url: http://localhost:8080/api
+    description: ผ่าน Gateway (docker compose)
+
+tags:
+  - name: auth
+  - name: me
+  - name: admin
+  - name: internal
+    description: ให้ service อื่นเรียกภายใน docker network เท่านั้น Gateway ไม่เปิดให้ภายนอก
+
+paths:
+  /auth/register:
+    post:
+      tags: [auth]
+      summary: สมัครสมาชิก (F2 ขั้น 1) ระบบส่ง OTP ไปทางอีเมล
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201':
+          description: สร้างบัญชีแล้ว รอยืนยัน OTP
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RegisterResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409':
+          description: อีเมลหรือเบอร์ซ้ำ (code = EMAIL_TAKEN หรือ PHONE_TAKEN)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /auth/verify-otp:
+    post:
+      tags: [auth]
+      summary: ยืนยันอีเมลด้วย OTP (F2 ขั้น 2-3)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VerifyOtpRequest' }
+      responses:
+        '204': { description: ยืนยันแล้ว เข้าสู่ระบบได้ }
+        '400':
+          description: OTP ผิด หมดอายุ หรือผิดเกิน 5 ครั้ง (code = OTP_INVALID, OTP_EXPIRED, OTP_LOCKED)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: สมาชิกเข้าสู่ระบบ
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: สำเร็จ และตั้ง cookie access_token
+          headers:
+            Set-Cookie:
+              schema: { type: string, example: 'access_token=eyJ...; Path=/; HttpOnly; SameSite=Lax' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '401':
+          description: อีเมลหรือรหัสผ่านผิด (code = BAD_CREDENTIALS) หรือยังไม่ยืนยันอีเมล (code = EMAIL_NOT_VERIFIED)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /auth/staff/login:
+    post:
+      tags: [auth]
+      summary: พนักงานเข้าสู่ระบบ (หลังบ้าน, Counter, Kiosk)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: สำเร็จ และตั้ง cookie access_token ที่มี permission อยู่ข้างใน
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffMe' }
+        '401':
+          description: code = BAD_CREDENTIALS หรือ ACCOUNT_SUSPENDED
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: ออกจากระบบ (ล้าง cookie)
+      responses:
+        '204': { description: ออกแล้ว }
+
+  /me:
+    get:
+      tags: [me]
+      summary: ข้อมูลของสมาชิกที่ login อยู่
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /me/qr-secret:
+    get:
+      tags: [me]
+      summary: secret สำหรับสร้าง QR ที่เปลี่ยนทุก 60 วินาทีในเบราว์เซอร์ (Sprint 4)
+      description: |
+        หน้า "QR ของฉัน" สร้าง QR เองด้วยหลักการ TOTP (RFC 6238, SHA-1, 6 หลัก, step 60 วินาที)
+        ข้อความใน QR = `CS1.<userId>.<totp>` เช่น `CS1.123.482913`
+        ไม่มีข้อมูลส่วนตัวใน QR และภาพที่แคปไว้ใช้ไม่ได้หลังผ่านไป 60 วินาที
+      x-sprint: 4
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  secretBase32: { type: string, example: JBSWY3DPEHPK3PXP }
+                  stepSeconds: { type: integer, example: 60 }
+                  digits: { type: integer, example: 6 }
+                  prefix: { type: string, example: 'CS1' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /admin/permissions:
+    get:
+      tags: [admin]
+      summary: permission ทั้งหมด (ใช้ทำตาราง checkbox ในหน้า Role)
+      x-permission: role.manage
+      x-sprint: 1
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Permission' }
+
+  /admin/roles:
+    get:
+      tags: [admin]
+      summary: Role ทั้งหมดพร้อม permission
+      x-permission: role.manage
+      x-sprint: 1
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Role' }
+    post:
+      tags: [admin]
+      summary: สร้าง Role
+      x-permission: role.manage
+      x-sprint: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RoleInput' }
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Role' }
+        '409':
+          description: code = ROLE_NAME_TAKEN
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /admin/roles/{roleId}:
+    put:
+      tags: [admin]
+      summary: แก้ชื่อและ permission ของ Role (มีผลกับพนักงานตอน login ครั้งถัดไป)
+      x-permission: role.manage
+      x-sprint: 1
+      parameters:
+        - name: roleId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RoleInput' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Role' }
+
+  /admin/employees:
+    get:
+      tags: [admin]
+      summary: รายชื่อพนักงาน
+      x-permission: employee.manage
+      x-sprint: 1
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [ACTIVE, SUSPENDED] }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Employee' }
+    post:
+      tags: [admin]
+      summary: เพิ่มพนักงาน ระบบส่งอีเมลให้ตั้งรหัสผ่านเอง (F1 ขั้น 1)
+      x-permission: employee.manage
+      x-sprint: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmployeeInput' }
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Employee' }
+        '409':
+          description: code = EMAIL_TAKEN
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /admin/employees/{employeeId}:
+    put:
+      tags: [admin]
+      summary: แก้ข้อมูล เปลี่ยน Role หรือระงับพนักงาน
+      x-permission: employee.manage
+      x-sprint: 1
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/EmployeeInput'
+                - type: object
+                  properties:
+                    status: { type: string, enum: [ACTIVE, SUSPENDED] }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Employee' }
+
+  /internal/qr/resolve:
+    post:
+      tags: [internal]
+      summary: แปลงข้อความใน QR เป็นผู้ใช้ (booking-service เรียกตอนสแกนที่ Kiosk และ Counter)
+      description: ตรวจ TOTP โดยยอมรับรหัสของช่วงก่อนหน้า 1 ช่วง กันกรณีนาฬิกามือถือคลาดเล็กน้อย
+      security: []
+      x-sprint: 4
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [qr]
+              properties:
+                qr: { type: string, example: CS1.123.482913 }
+      responses:
+        '200':
+          description: QR ถูกต้อง
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserSummary' }
+        '404':
+          description: รูปแบบผิด หมดอายุ หรือผู้ใช้ถูกระงับ (code = QR_INVALID)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /internal/users/by-email:
+    get:
+      tags: [internal]
+      summary: หาสมาชิกจากอีเมล (booking-service ใช้ตอนเชิญผู้ร่วมใช้)
+      security: []
+      x-sprint: 3
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema: { type: string, format: email }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserSummary' }
+        '404':
+          description: code = USER_NOT_FOUND
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /internal/users:
+    get:
+      tags: [internal]
+      summary: ข้อมูลสรุปของสมาชิกหลายคนในครั้งเดียว (ใช้แสดงชื่อในรายการจองและรายงาน)
+      security: []
+      x-sprint: 3
+      parameters:
+        - name: ids
+          in: query
+          required: true
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { type: integer, format: int64 }
+          example: [123, 124]
+      responses:
+        '200':
+          description: คืนเฉพาะ id ที่พบ
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/UserSummary' }
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: access_token
+
+  responses:
+    Unauthorized:
+      description: ไม่ได้ login หรือ token หมดอายุ (code = UNAUTHORIZED)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationError:
+      description: ข้อมูลไม่ครบหรือรูปแบบผิด (code = VALIDATION_FAILED) details บอกว่าช่องไหนผิด
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            code: VALIDATION_FAILED
+            message: ข้อมูลไม่ถูกต้อง
+            details: { email: ต้องเป็นอีเมล, password: ต้องยาวอย่างน้อย 8 ตัว }
+
+  schemas:
+    Error:
+      description: รูปแบบ error เดียวกันทุก service
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, example: EMAIL_TAKEN }
+        message: { type: string, example: อีเมลนี้ถูกใช้สมัครแล้ว }
+        details:
+          type: object
+          additionalProperties: { type: string }
+
+    RegisterRequest:
+      type: object
+      required: [firstName, lastName, email, phone, password, acceptTerms]
+      properties:
+        firstName: { type: string, maxLength: 60, example: นันท์นภัส }
+        lastName: { type: string, maxLength: 60, example: ภาคภูมิ }
+        email: { type: string, format: email, example: nannapat@example.com }
+        phone: { type: string, pattern: '^0[0-9]{9}$', example: '0806062300' }
+        password: { type: string, minLength: 8, example: 'P@ssw0rd123' }
+        acceptTerms: { type: boolean, example: true }
+
+    RegisterResponse:
+      type: object
+      properties:
+        userId: { type: integer, format: int64, example: 123 }
+        otpExpiresAt: { type: string, format: date-time }
+
+    VerifyOtpRequest:
+      type: object
+      required: [email, otp]
+      properties:
+        email: { type: string, format: email }
+        otp: { type: string, pattern: '^[0-9]{6}$', example: '482913' }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+
+    Me:
+      type: object
+      properties:
+        userId: { type: integer, format: int64, example: 123 }
+        displayId: { type: string, example: U-000123 }
+        firstName: { type: string }
+        lastName: { type: string }
+        email: { type: string }
+        phone: { type: string }
+
+    StaffMe:
+      type: object
+      properties:
+        employeeId: { type: integer, format: int64, example: 7 }
+        displayId: { type: string, example: STF-007 }
+        firstName: { type: string }
+        role: { type: string, example: พนักงาน Counter }
+        permissions:
+          type: array
+          items: { type: string }
+          example: [loan.record, checkout.override]
+
+    UserSummary:
+      type: object
+      properties:
+        userId: { type: integer, format: int64, example: 123 }
+        displayId: { type: string, example: U-000123 }
+        firstName: { type: string }
+        lastName: { type: string }
+
+    Permission:
+      type: object
+      properties:
+        code: { type: string, example: loan.record }
+        name: { type: string, example: บันทึกยืม-คืน }
+
+    RoleInput:
+      type: object
+      required: [name, permissions]
+      properties:
+        name: { type: string, maxLength: 60, example: พนักงาน Counter }
+        permissions:
+          type: array
+          items: { type: string }
+          example: [loan.record, checkout.override]
+
+    Role:
+      allOf:
+        - type: object
+          properties:
+            roleId: { type: integer, format: int64 }
+            employeeCount: { type: integer }
+        - $ref: '#/components/schemas/RoleInput'
+
+    EmployeeInput:
+      type: object
+      required: [firstName, lastName, email, roleId]
+      properties:
+        firstName: { type: string, maxLength: 60 }
+        lastName: { type: string, maxLength: 60 }
+        email: { type: string, format: email }
+        phone: { type: string, pattern: '^0[0-9]{9}$' }
+        roleId: { type: integer, format: int64 }
+
+    Employee:
+      type: object
+      properties:
+        employeeId: { type: integer, format: int64 }
+        displayId: { type: string, example: STF-005 }
+        firstName: { type: string }
+        lastName: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        roleId: { type: integer, format: int64 }
+        roleName: { type: string }
+        status: { type: string, enum: [ACTIVE, SUSPENDED] }
+
+security:
+  - cookieAuth: []

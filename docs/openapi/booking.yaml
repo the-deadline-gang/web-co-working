@@ -1,0 +1,1371 @@
+openapi: 3.0.3
+info:
+  title: CO-SYNC Booking API
+  version: 0.1.0
+  description: |
+    สัญญา API ของ booking-service (Sprint 1, 3, 4, 5) รวมพื้นที่ ราคา การจอง เข้า-ออก และยืม-คืนอุปกรณ์
+    อ้างอิงกฎ BR-10 ถึง BR-42 และ flow F1, F4-F10 ในเอกสาร System Flow v2
+
+    **ข้อตกลง**
+    - หน่วยเงินเป็น Token เวลาเป็น ISO 8601 เขตเวลา Asia/Bangkok (+07:00)
+    - `x-permission` = permission code ที่พนักงานต้องมี ถ้าไม่ระบุแปลว่าเป็น endpoint ของสมาชิก
+    - `x-sprint` = Sprint ที่ต้องทำ endpoint นั้นเสร็จ
+    - เงินทุกครั้งเรียก wallet-service `/internal/wallets/{userId}/debit|credit` พร้อม Idempotency-Key
+servers:
+  - url: http://localhost:8080/api
+    description: ผ่าน Gateway (frontend)
+
+tags:
+  - name: catalog
+    description: ข้อมูลบริการและช่วงว่างที่สมาชิกเห็น
+  - name: booking
+  - name: participant
+  - name: kiosk
+  - name: counter
+  - name: member-loan
+  - name: admin-catalog
+    description: หลังบ้าน พื้นที่ อุปกรณ์ ราคา ค่าตั้งค่า (F1)
+  - name: report
+
+paths:
+  # ---------------------------------------------------------------- catalog
+  /services:
+    get:
+      tags: [catalog]
+      summary: ประเภทบริการพร้อมราคาปัจจุบัน (หน้าเลือกบริการ ดูได้โดยไม่ต้อง login)
+      security: []
+      x-sprint: 3
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ServiceRate' }
+
+  /availability:
+    get:
+      tags: [catalog]
+      summary: Resource ที่ว่างในช่วงที่เลือก (F4 ขั้น 1-2, BR-10 ถึง BR-14)
+      description: |
+        DAY_PASS ส่งแค่ `date` ส่วนประเภทอื่นต้องส่ง `start` และ `end` เป็นชั่วโมงเต็ม
+        ผลลัพธ์มีแต่ Resource ที่ว่างจริง พร้อมราคาที่คำนวณแล้ว
+      x-sprint: 3
+      parameters:
+        - name: serviceType
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/ServiceType' }
+        - name: date
+          in: query
+          required: true
+          schema: { type: string, format: date, example: '2026-11-10' }
+        - name: start
+          in: query
+          schema: { type: string, pattern: '^([01][0-9]|2[0-3]):00$', example: '14:00' }
+        - name: end
+          in: query
+          schema: { type: string, pattern: '^([01][0-9]|2[0-3]):00$', example: '16:00' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Availability' }
+        '400':
+          description: |
+            code = OUTSIDE_OPENING_HOURS (BR-10), BOOK_AHEAD_LIMIT (เกิน 30 วัน),
+            INVALID_TIME_RANGE (ไม่ใช่ชั่วโมงเต็มหรือ end ≤ start), DATE_IN_PAST
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  # ---------------------------------------------------------------- booking
+  /bookings:
+    post:
+      tags: [booking]
+      summary: ล็อกช่วงเวลาและสร้างการจองสถานะ PENDING_PAYMENT (F4 ขั้น 3, BR-15, BR-16)
+      x-sprint: 3
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateBookingRequest' }
+      responses:
+        '201':
+          description: ล็อกแล้ว ต้องชำระภายใน holdUntil
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
+        '409':
+          description: มีคนจองช่วงนี้ไปแล้ว (code = SLOT_TAKEN) หรือ Day Pass เต็ม (code = DAY_PASS_SOLD_OUT)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { code: SLOT_TAKEN, message: ช่วงเวลานี้ไม่ว่างแล้ว กรุณาเลือกใหม่ }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /me/bookings:
+    get:
+      tags: [booking]
+      summary: การจองของฉัน รวมการจองที่ถูกเชิญเป็นผู้ร่วมใช้
+      x-sprint: 3
+      parameters:
+        - name: scope
+          in: query
+          schema: { type: string, enum: [upcoming, past], default: upcoming }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: upcoming เรียงจากใกล้สุด past เรียงจากล่าสุด
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookingPage' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /bookings/{bookingId}:
+    get:
+      tags: [booking]
+      summary: รายละเอียดการจอง (เจ้าของหรือผู้ร่วมใช้เท่านั้น)
+      x-sprint: 3
+      parameters: [{ $ref: '#/components/parameters/BookingId' }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /bookings/{bookingId}/pay:
+    post:
+      tags: [booking]
+      summary: ชำระด้วย Wallet แล้วเปลี่ยนเป็น CONFIRMED (F4 ขั้น 5)
+      description: เรียกซ้ำได้ ถ้าชำระแล้วจะคืนการจองเดิม (ใช้ Idempotency-Key booking-{id}-pay กับ wallet-service)
+      x-sprint: 3
+      parameters: [{ $ref: '#/components/parameters/BookingId' }]
+      responses:
+        '200':
+          description: ชำระแล้ว
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
+        '409':
+          description: หมดเวลาล็อก (code = HOLD_EXPIRED) หรือสถานะไม่ใช่ PENDING_PAYMENT (code = INVALID_STATE)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422':
+          description: ยอดไม่พอ (code = INSUFFICIENT_BALANCE) details.shortfall = จำนวนที่ขาด ให้แสดงปุ่มเติมเงิน
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /bookings/{bookingId}/extend-hold:
+    post:
+      tags: [booking]
+      summary: ต่อเวลาล็อก 15 นาทีระหว่างไปเติมเงิน (BR-17 ได้ครั้งเดียว)
+      x-sprint: 3
+      parameters: [{ $ref: '#/components/parameters/BookingId' }]
+      responses:
+        '200':
+          description: ต่อแล้ว holdUntil ใหม่อยู่ใน response
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
+        '409':
+          description: code = HOLD_ALREADY_EXTENDED, HOLD_EXPIRED หรือ INVALID_STATE
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /bookings/{bookingId}/cancel-preview:
+    get:
+      tags: [booking]
+      summary: ดูจำนวนเงินที่จะได้คืนก่อนกดยืนยันยกเลิก (F6 ขั้น 2)
+      x-sprint: 3
+      parameters: [{ $ref: '#/components/parameters/BookingId' }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CancelPreview' }
+        '409':
+          description: ยกเลิกไม่ได้แล้ว (code = NOT_CANCELLABLE) เช่น เลยเวลาเริ่ม หรือไม่ใช่ CONFIRMED
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: ไม่ใช่เจ้าของการจอง (code = NOT_BOOKING_OWNER)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /bookings/{bookingId}/cancel:
+    post:
+      tags: [booking]
+      summary: ยกเลิกและคืนเงินตามตาราง 2.3 (F6 ขั้น 3)
+      x-sprint: 3
+      parameters: [{ $ref: '#/components/parameters/BookingId' }]
+      responses:
+        '200':
+          description: ยกเลิกแล้ว refundAmount อยู่ใน response
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
+        '409':
+          description: code = NOT_CANCELLABLE
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: code = NOT_BOOKING_OWNER
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  # ---------------------------------------------------------------- participant
+  /bookings/{bookingId}/participants:
+    post:
+      tags: [participant]
+      summary: เชิญผู้ร่วมใช้ด้วยอีเมลที่มีบัญชีแล้ว (F5, BR-18)
+      x-sprint: 3
+      parameters: [{ $ref: '#/components/parameters/BookingId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email, example: friend@example.com }
+      responses:
+        '201':
+          description: เพิ่มแล้ว
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Participant' }
+        '404':
+          description: อีเมลนี้ยังไม่มีบัญชี (code = USER_NOT_FOUND) ให้แอปแนะนำส่งลิงก์สมัคร
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: |
+            code = CAPACITY_FULL (เกินความจุ − 1), ALREADY_PARTICIPANT,
+            PARTICIPANTS_NOT_ALLOWED (ไม่ใช่การจองห้อง), BOOKING_STARTED
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: code = NOT_BOOKING_OWNER
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /bookings/{bookingId}/participants/{userId}:
+    delete:
+      tags: [participant]
+      summary: เจ้าของลบผู้ร่วมใช้ (ทำได้ก่อนเวลาเริ่ม)
+      x-sprint: 3
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '204': { description: ลบแล้ว }
+        '403':
+          description: code = NOT_BOOKING_OWNER
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: code = BOOKING_STARTED
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /bookings/{bookingId}/leave:
+    post:
+      tags: [participant]
+      summary: ผู้ร่วมใช้ขอออกจากการจองเอง
+      x-sprint: 3
+      parameters: [{ $ref: '#/components/parameters/BookingId' }]
+      responses:
+        '204': { description: ออกแล้ว }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ---------------------------------------------------------------- kiosk
+  /kiosk/scan:
+    post:
+      tags: [kiosk]
+      summary: สแกน QR ที่ทางเข้าหรือทางออก (F7, F10, BR-21, BR-40)
+      description: |
+        ผลที่ปฏิเสธตอบ 200 พร้อม `allowed = false` เพื่อให้จอ Kiosk แสดงจอแดงได้ตรงๆ
+        ส่วน 4xx ใช้เฉพาะคำขอที่ผิดรูปแบบ
+      x-permission: kiosk.operate
+      x-sprint: 4
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [qr, direction]
+              properties:
+                qr: { type: string, description: ข้อความที่อ่านได้จาก QR บนจอสมาชิก }
+                direction: { type: string, enum: [IN, OUT] }
+      responses:
+        '200':
+          description: ผลการสแกน
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScanResult' }
+              examples:
+                allowedIn:
+                  value:
+                    allowed: true
+                    direction: IN
+                    user: { userId: 123, displayId: U-000123, firstName: นันท์นภัส }
+                    booking: { bookingId: 192, displayId: BK-000192, resourceCode: B-ROOM-02, startAt: '2026-11-10T14:00:00+07:00', endAt: '2026-11-10T16:00:00+07:00' }
+                deniedOut:
+                  value:
+                    allowed: false
+                    direction: OUT
+                    reasonCode: OUTSTANDING_LOAN
+                    message: กรุณาคืนอุปกรณ์ที่ Counter ก่อนออก
+                    user: { userId: 123, displayId: U-000123, firstName: นันท์นภัส }
+                    outstandingLoans: [{ loanId: 55, equipmentName: สาย HDMI, barcode: EQ-L-003 }]
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ---------------------------------------------------------------- counter
+  /counter/lookup:
+    post:
+      tags: [counter]
+      summary: หาผู้ใช้จาก QR หรือรหัส U-xxxxxx (F8 ขั้น 1, F9 ขั้น 1)
+      x-permission: loan.record
+      x-sprint: 4
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: ส่งอย่างใดอย่างหนึ่ง
+              properties:
+                qr: { type: string }
+                userDisplayId: { type: string, example: U-000123 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CounterUser' }
+        '404':
+          description: code = USER_NOT_FOUND หรือ QR_INVALID
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /counter/equipment:
+    get:
+      tags: [counter]
+      summary: อุปกรณ์ให้ยืมที่พร้อมใช้ (กรณีไม่สแกนบาร์โค้ด)
+      x-permission: loan.record
+      x-sprint: 4
+      parameters:
+        - name: typeId
+          in: query
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: เฉพาะสถานะ AVAILABLE และ isLoanable
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Equipment' }
+
+  /counter/loans:
+    post:
+      tags: [counter]
+      summary: บันทึกการยืมและตัดค่ายืม + เงินประกัน (F8, BR-30, BR-31)
+      x-permission: loan.record
+      x-sprint: 4
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateLoanRequest' }
+      responses:
+        '201':
+          description: ยืมแล้ว
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Loan' }
+        '409':
+          description: |
+            code = NOT_CHECKED_IN, LOAN_LIMIT_REACHED (ครบ 3 ชิ้น), EQUIPMENT_NOT_AVAILABLE
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422':
+          description: code = INSUFFICIENT_BALANCE details.required และ details.shortfall
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /counter/loans/{loanId}/return-preview:
+    get:
+      tags: [counter]
+      summary: คำนวณผลและเงินประกันที่จะคืนก่อนพนักงานกดยืนยัน (F9 ขั้น 3)
+      x-permission: loan.record
+      x-sprint: 4
+      parameters:
+        - $ref: '#/components/parameters/LoanId'
+        - name: conditionAfter
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/ConditionScore' }
+        - name: unusable
+          in: query
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReturnPreview' }
+
+  /counter/loans/{loanId}/return:
+    post:
+      tags: [counter]
+      summary: ยืนยันการคืนและคืนเงินประกันตามตาราง 2.4 (F9 ขั้น 4)
+      x-permission: loan.record
+      x-sprint: 4
+      parameters: [{ $ref: '#/components/parameters/LoanId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReturnLoanRequest' }
+      responses:
+        '200':
+          description: คืนแล้ว
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Loan' }
+        '409':
+          description: code = LOAN_ALREADY_CLOSED
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /counter/checkout-override:
+    post:
+      tags: [counter]
+      summary: อนุญาตให้ออกทั้งที่ยังมีของค้าง (BR-41)
+      x-permission: checkout.override
+      x-sprint: 4
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, reason]
+              properties:
+                userId: { type: integer, format: int64 }
+                reason:
+                  type: string
+                  enum: [WILL_RETURN_LATER, EQUIPMENT_LEFT_IN_ROOM, EMERGENCY, OTHER]
+                note: { type: string, maxLength: 200 }
+      responses:
+        '200':
+          description: บันทึก access_log ประเภท OUT วิธี OVERRIDE แล้ว
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccessLog' }
+        '409':
+          description: code = NOT_CHECKED_IN
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /counter/present:
+    get:
+      tags: [counter]
+      summary: คนที่อยู่ในพื้นที่ตอนนี้ (Check-in แล้วยังไม่ออก)
+      x-permission: loan.record
+      x-sprint: 4
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    user: { $ref: '#/components/schemas/UserSummary' }
+                    resourceCode: { type: string, example: B-ROOM-02 }
+                    checkedInAt: { type: string, format: date-time }
+                    activeLoanCount: { type: integer }
+
+  # ---------------------------------------------------------------- member loan
+  /me/loans:
+    get:
+      tags: [member-loan]
+      summary: รายการยืมของฉัน
+      x-sprint: 4
+      parameters:
+        - name: active
+          in: query
+          description: true = เฉพาะที่ยังไม่คืน
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Loan' }
+
+  # ---------------------------------------------------------------- admin catalog
+  /admin/zones:
+    get:
+      tags: [admin-catalog]
+      summary: รายการโซน
+      x-permission: resource.manage
+      x-sprint: 1
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Zone' }
+    post:
+      tags: [admin-catalog]
+      summary: เพิ่มโซน
+      x-permission: resource.manage
+      x-sprint: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Zone' }
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Zone' }
+
+  /admin/resources:
+    get:
+      tags: [admin-catalog]
+      summary: รายการ Resource ทั้งหมด
+      x-permission: resource.manage
+      x-sprint: 1
+      parameters:
+        - name: serviceType
+          in: query
+          schema: { $ref: '#/components/schemas/ServiceType' }
+        - name: zoneId
+          in: query
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Resource' }
+    post:
+      tags: [admin-catalog]
+      summary: เพิ่ม Resource
+      x-permission: resource.manage
+      x-sprint: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResourceInput' }
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '409':
+          description: code = RESOURCE_CODE_TAKEN
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /admin/resources/{resourceId}:
+    put:
+      tags: [admin-catalog]
+      summary: แก้ Resource หรือปิดการใช้งาน (isActive = false)
+      x-permission: resource.manage
+      x-sprint: 1
+      parameters: [{ $ref: '#/components/parameters/ResourceId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResourceInput' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/equipment-types:
+    get:
+      tags: [admin-catalog]
+      summary: ประเภทอุปกรณ์
+      x-permission: equipment.manage
+      x-sprint: 1
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/EquipmentType' }
+    post:
+      tags: [admin-catalog]
+      summary: เพิ่มประเภทอุปกรณ์ (IT กรอกชื่อ ส่วนค่ายืมและเงินประกันฝ่ายการเงินตั้งทีหลัง)
+      x-permission: equipment.manage
+      x-sprint: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EquipmentType' }
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EquipmentType' }
+
+  /admin/equipment-types/{typeId}/pricing:
+    put:
+      tags: [admin-catalog]
+      summary: ตั้งค่ายืมและเงินประกันของประเภทอุปกรณ์ (BR-31)
+      x-permission: rate.manage
+      x-sprint: 1
+      parameters:
+        - name: typeId
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [loanFee, deposit]
+              properties:
+                loanFee: { $ref: '#/components/schemas/Money' }
+                deposit: { $ref: '#/components/schemas/Money' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EquipmentType' }
+
+  /admin/equipment:
+    get:
+      tags: [admin-catalog]
+      summary: อุปกรณ์ทุกชิ้น
+      x-permission: equipment.manage
+      x-sprint: 1
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/EquipmentStatus' }
+        - name: typeId
+          in: query
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Equipment' }
+    post:
+      tags: [admin-catalog]
+      summary: เพิ่มอุปกรณ์ 1 ชิ้น
+      x-permission: equipment.manage
+      x-sprint: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EquipmentInput' }
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Equipment' }
+        '409':
+          description: code = BARCODE_TAKEN
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /admin/equipment/{equipmentId}:
+    put:
+      tags: [admin-catalog]
+      summary: แก้อุปกรณ์ เช่น เปลี่ยนสถานะ MAINTENANCE → AVAILABLE หลังซ่อม
+      x-permission: equipment.manage
+      x-sprint: 1
+      parameters: [{ $ref: '#/components/parameters/EquipmentId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EquipmentInput' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Equipment' }
+        '409':
+          description: กำลังถูกยืมอยู่ เปลี่ยนสถานะหรือลบไม่ได้ (code = EQUIPMENT_IN_USE)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    delete:
+      tags: [admin-catalog]
+      summary: ลบอุปกรณ์ (ห้ามลบชิ้นที่กำลังถูกยืม)
+      x-permission: equipment.manage
+      x-sprint: 1
+      parameters: [{ $ref: '#/components/parameters/EquipmentId' }]
+      responses:
+        '204': { description: ลบแล้ว }
+        '409':
+          description: code = EQUIPMENT_IN_USE
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /admin/rates:
+    get:
+      tags: [admin-catalog]
+      summary: ราคาของทุกประเภทบริการ
+      x-permission: rate.manage
+      x-sprint: 1
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ServiceRate' }
+
+  /admin/rates/{serviceType}:
+    put:
+      tags: [admin-catalog]
+      summary: ตั้งราคาและส่วนลดของประเภทบริการ (BR-13)
+      description: การจองที่สร้างไปแล้วใช้ราคาเดิม ไม่คำนวณใหม่
+      x-permission: rate.manage
+      x-sprint: 1
+      parameters:
+        - name: serviceType
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/ServiceType' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rate, discountPct]
+              properties:
+                rate: { $ref: '#/components/schemas/Money' }
+                discountPct: { type: number, minimum: 0, maximum: 100, example: 10 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceRate' }
+
+  /admin/settings:
+    get:
+      tags: [admin-catalog]
+      summary: ค่าตั้งค่าการจองและยืม-คืน (ค่าใน [ ] ของส่วนที่ 2 ยกเว้นของ Wallet)
+      x-permission: setting.manage
+      x-sprint: 1
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookingSettings' }
+    put:
+      tags: [admin-catalog]
+      summary: แก้ค่าตั้งค่า
+      x-permission: setting.manage
+      x-sprint: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookingSettings' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookingSettings' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /admin/loans/{loanId}/adjust:
+    post:
+      tags: [admin-catalog]
+      summary: ผู้จัดการแก้ผลประเมินย้อนหลังภายใน 7 วัน (ส่วน 2.4)
+      description: ถ้าผลใหม่คืนเงินประกันมากกว่าเดิม ระบบคืนส่วนต่างให้ (Idempotency-Key loan-{id}-adjust)
+      x-permission: resource.manage
+      x-sprint: 5
+      parameters: [{ $ref: '#/components/parameters/LoanId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [result, reason]
+              properties:
+                result: { $ref: '#/components/schemas/LoanResult' }
+                reason: { type: string, maxLength: 200 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Loan' }
+        '409':
+          description: code = ADJUST_WINDOW_PASSED (เกิน 7 วัน) หรือ RESULT_NOT_HIGHER (ลดเงินคืนย้อนหลังไม่ได้)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  # ---------------------------------------------------------------- report
+  /reports/occupancy:
+    get:
+      tags: [report]
+      summary: อัตราการใช้ Resource รายวัน (ชั่วโมงที่จอง / ชั่วโมงเปิด)
+      x-permission: report.view
+      x-sprint: 5
+      parameters:
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - name: serviceType
+          in: query
+          schema: { $ref: '#/components/schemas/ServiceType' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    date: { type: string, format: date }
+                    resourceCode: { type: string }
+                    bookedHours: { type: integer }
+                    openHours: { type: integer }
+                    noShowCount: { type: integer }
+
+  /reports/loans:
+    get:
+      tags: [report]
+      summary: สรุปยืม-คืนและความเสียหายแยกตามประเภทอุปกรณ์
+      x-permission: report.view
+      x-sprint: 5
+      parameters:
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    equipmentType: { type: string, example: สาย HDMI }
+                    loans: { type: integer }
+                    normal: { type: integer }
+                    minor: { type: integer }
+                    major: { type: integer }
+                    lost: { type: integer }
+                    overdueNow: { type: integer }
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: access_token
+
+  parameters:
+    BookingId:
+      name: bookingId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    LoanId:
+      name: loanId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    ResourceId:
+      name: resourceId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    EquipmentId:
+      name: equipmentId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 0, default: 0 }
+    Size:
+      name: size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    From:
+      name: from
+      in: query
+      required: true
+      schema: { type: string, format: date }
+    To:
+      name: to
+      in: query
+      required: true
+      schema: { type: string, format: date }
+
+  responses:
+    Unauthorized:
+      description: code = UNAUTHORIZED
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: code = FORBIDDEN
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: ไม่พบ หรือผู้ใช้ไม่มีสิทธิ์ดู (code = NOT_FOUND)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationError:
+      description: code = VALIDATION_FAILED
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details:
+          type: object
+          additionalProperties: { type: string }
+
+    Money:
+      type: number
+      format: double
+      description: Token ทศนิยม 2 ตำแหน่ง
+      example: 240.00
+
+    ServiceType:
+      type: string
+      enum: [DAY_PASS, DESK, MEETING, STUDIO, GAME]
+
+    BookingStatus:
+      type: string
+      enum: [PENDING_PAYMENT, CONFIRMED, CHECKED_IN, COMPLETED, EXPIRED, CANCELLED, NO_SHOW]
+
+    EquipmentStatus:
+      type: string
+      enum: [AVAILABLE, BORROWED, MAINTENANCE, LOST]
+
+    LoanStatus:
+      type: string
+      enum: [BORROWED, RETURNED, OVERDUE, LOST]
+
+    LoanResult:
+      type: string
+      enum: [NORMAL, MINOR, MAJOR, LOST]
+      description: NORMAL คืน 100%, MINOR 50%, MAJOR และ LOST 0%
+
+    ConditionScore:
+      type: integer
+      minimum: 1
+      maximum: 10
+
+    UserSummary:
+      type: object
+      properties:
+        userId: { type: integer, format: int64, example: 123 }
+        displayId: { type: string, example: U-000123 }
+        firstName: { type: string, example: นันท์นภัส }
+        lastName: { type: string, example: ภาคภูมิ }
+
+    ServiceRate:
+      type: object
+      example: { serviceType: MEETING, name: ห้องประชุม, rate: 120, unit: HOUR, discountPct: 0 }
+      properties:
+        serviceType: { $ref: '#/components/schemas/ServiceType' }
+        name: { type: string, example: ห้องประชุม }
+        rate: { $ref: '#/components/schemas/Money' }
+        unit: { type: string, enum: [HOUR, DAY] }
+        discountPct: { type: number, example: 0 }
+
+    Zone:
+      type: object
+      required: [name]
+      properties:
+        zoneId: { type: integer, format: int64, readOnly: true }
+        name: { type: string, example: B }
+
+    ResourceInput:
+      type: object
+      required: [code, zoneId, serviceType, capacity]
+      properties:
+        code: { type: string, maxLength: 20, example: B-ROOM-02 }
+        zoneId: { type: integer, format: int64 }
+        serviceType: { $ref: '#/components/schemas/ServiceType' }
+        capacity: { type: integer, minimum: 1, example: 6 }
+        dailyQuota: { type: integer, minimum: 1, description: ใช้กับ DAY_PASS เท่านั้น, example: 40 }
+        sizeSqm: { type: number, example: 18 }
+        imageUrl: { type: string, format: uri }
+        isActive: { type: boolean, default: true }
+
+    Resource:
+      allOf:
+        - $ref: '#/components/schemas/ResourceInput'
+        - type: object
+          properties:
+            resourceId: { type: integer, format: int64 }
+            zoneName: { type: string, example: B }
+            fixedEquipment:
+              type: array
+              description: อุปกรณ์ประจำห้อง
+              items: { $ref: '#/components/schemas/Equipment' }
+
+    Availability:
+      type: object
+      properties:
+        serviceType: { $ref: '#/components/schemas/ServiceType' }
+        date: { type: string, format: date }
+        start: { type: string, example: '14:00' }
+        end: { type: string, example: '16:00' }
+        dayPassRemaining:
+          type: integer
+          nullable: true
+          description: มีค่าเฉพาะ DAY_PASS
+        resources:
+          type: array
+          items:
+            type: object
+            properties:
+              resourceId: { type: integer, format: int64 }
+              code: { type: string, example: B-ROOM-02 }
+              zoneName: { type: string }
+              capacity: { type: integer }
+              sizeSqm: { type: number }
+              imageUrl: { type: string }
+              fixedEquipment:
+                type: array
+                items: { type: string, example: จอ TV 55 นิ้ว }
+              price: { $ref: '#/components/schemas/Money' }
+
+    CreateBookingRequest:
+      type: object
+      required: [resourceId, startAt, endAt]
+      properties:
+        resourceId: { type: integer, format: int64 }
+        startAt:
+          type: string
+          format: date-time
+          description: DAY_PASS ส่งเวลาเปิดของวันนั้น
+          example: '2026-11-10T14:00:00+07:00'
+        endAt: { type: string, format: date-time, example: '2026-11-10T16:00:00+07:00' }
+
+    Participant:
+      type: object
+      properties:
+        user: { $ref: '#/components/schemas/UserSummary' }
+        invitedAt: { type: string, format: date-time }
+        checkedIn: { type: boolean }
+
+    Booking:
+      type: object
+      properties:
+        bookingId: { type: integer, format: int64, example: 192 }
+        displayId: { type: string, example: BK-000192 }
+        status: { $ref: '#/components/schemas/BookingStatus' }
+        myRole: { type: string, enum: [OWNER, PARTICIPANT] }
+        owner: { $ref: '#/components/schemas/UserSummary' }
+        resource:
+          type: object
+          properties:
+            resourceId: { type: integer, format: int64 }
+            code: { type: string, example: B-ROOM-02 }
+            serviceType: { $ref: '#/components/schemas/ServiceType' }
+            capacity: { type: integer }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+        price: { $ref: '#/components/schemas/Money' }
+        holdUntil:
+          type: string
+          format: date-time
+          nullable: true
+          description: มีค่าเฉพาะ PENDING_PAYMENT ใช้ทำตัวนับถอยหลัง
+        holdExtended: { type: boolean }
+        participants:
+          type: array
+          items: { $ref: '#/components/schemas/Participant' }
+        cancelledAt: { type: string, format: date-time, nullable: true }
+        refundAmount:
+          allOf: [{ $ref: '#/components/schemas/Money' }]
+          nullable: true
+        createdAt: { type: string, format: date-time }
+
+    BookingPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Booking' }
+        page: { type: integer }
+        size: { type: integer }
+        totalItems: { type: integer, format: int64 }
+
+    CancelPreview:
+      type: object
+      properties:
+        hoursBeforeStart: { type: number, example: 5.5 }
+        refundPct: { type: integer, enum: [0, 50, 100], example: 50 }
+        refundAmount: { $ref: '#/components/schemas/Money' }
+
+    AccessLog:
+      type: object
+      properties:
+        logId: { type: integer, format: int64 }
+        direction: { type: string, enum: [IN, OUT] }
+        method: { type: string, enum: [QR, OVERRIDE, AUTO] }
+        overrideBy: { type: string, nullable: true, example: STF-005 }
+        overrideReason: { type: string, nullable: true }
+        scannedAt: { type: string, format: date-time }
+
+    ScanResult:
+      type: object
+      required: [allowed, direction]
+      properties:
+        allowed: { type: boolean }
+        direction: { type: string, enum: [IN, OUT] }
+        reasonCode:
+          type: string
+          nullable: true
+          enum: [QR_INVALID, NO_ACTIVE_BOOKING, TOO_EARLY, BOOKING_ENDED, OUTSTANDING_LOAN, NOT_CHECKED_IN]
+          description: มีค่าเมื่อ allowed = false
+        message: { type: string, example: กรุณาคืนอุปกรณ์ที่ Counter ก่อนออก }
+        user: { $ref: '#/components/schemas/UserSummary' }
+        booking:
+          type: object
+          nullable: true
+          properties:
+            bookingId: { type: integer, format: int64 }
+            displayId: { type: string }
+            resourceCode: { type: string }
+            startAt: { type: string, format: date-time }
+            endAt: { type: string, format: date-time }
+        nextBookingStartAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: มีค่าเมื่อ TOO_EARLY หรือ NO_ACTIVE_BOOKING แต่มีการจองถัดไปวันนี้
+        outstandingLoans:
+          type: array
+          items:
+            type: object
+            properties:
+              loanId: { type: integer, format: int64 }
+              equipmentName: { type: string }
+              barcode: { type: string }
+
+    CounterUser:
+      type: object
+      properties:
+        user: { $ref: '#/components/schemas/UserSummary' }
+        checkedIn: { type: boolean }
+        walletBalance: { $ref: '#/components/schemas/Money' }
+        activeLoans:
+          type: array
+          items: { $ref: '#/components/schemas/Loan' }
+
+    EquipmentType:
+      type: object
+      required: [name, isLoanable]
+      properties:
+        equipmentTypeId: { type: integer, format: int64, readOnly: true }
+        name: { type: string, example: สาย HDMI }
+        isLoanable: { type: boolean }
+        loanFee:
+          allOf: [{ $ref: '#/components/schemas/Money' }]
+          readOnly: true
+          example: 20
+        deposit:
+          allOf: [{ $ref: '#/components/schemas/Money' }]
+          readOnly: true
+          example: 300
+
+    EquipmentInput:
+      type: object
+      required: [equipmentTypeId, barcode]
+      properties:
+        equipmentTypeId: { type: integer, format: int64 }
+        barcode: { type: string, maxLength: 30, example: EQ-L-003 }
+        resourceId:
+          type: integer
+          format: int64
+          nullable: true
+          description: มีค่า = อุปกรณ์ประจำห้อง
+        status:
+          allOf: [{ $ref: '#/components/schemas/EquipmentStatus' }]
+          description: เปลี่ยนได้เฉพาะ AVAILABLE ↔ MAINTENANCE จากหน้านี้
+
+    Equipment:
+      type: object
+      properties:
+        equipmentId: { type: integer, format: int64 }
+        barcode: { type: string, example: EQ-L-003 }
+        typeName: { type: string, example: สาย HDMI }
+        equipmentTypeId: { type: integer, format: int64 }
+        status: { $ref: '#/components/schemas/EquipmentStatus' }
+        resourceCode: { type: string, nullable: true }
+        loanFee: { $ref: '#/components/schemas/Money' }
+        deposit: { $ref: '#/components/schemas/Money' }
+
+    CreateLoanRequest:
+      type: object
+      required: [userId, conditionBefore]
+      description: ส่ง equipmentId หรือ barcode อย่างใดอย่างหนึ่ง
+      properties:
+        userId: { type: integer, format: int64 }
+        equipmentId: { type: integer, format: int64 }
+        barcode: { type: string }
+        conditionBefore: { $ref: '#/components/schemas/ConditionScore' }
+
+    ReturnLoanRequest:
+      type: object
+      required: [conditionAfter]
+      properties:
+        conditionAfter: { $ref: '#/components/schemas/ConditionScore' }
+        unusable: { type: boolean, default: false, description: true = เสียหายหนักทันที ไม่ว่าคะแนนเท่าไร }
+        photoUrl: { type: string, format: uri }
+
+    ReturnPreview:
+      type: object
+      properties:
+        conditionBefore: { $ref: '#/components/schemas/ConditionScore' }
+        conditionAfter: { $ref: '#/components/schemas/ConditionScore' }
+        drop: { type: integer, example: 3 }
+        result: { $ref: '#/components/schemas/LoanResult' }
+        depositRefund: { $ref: '#/components/schemas/Money' }
+        equipmentStatusAfter: { $ref: '#/components/schemas/EquipmentStatus' }
+
+    Loan:
+      type: object
+      properties:
+        loanId: { type: integer, format: int64, example: 55 }
+        displayId: { type: string, example: LN-000055 }
+        status: { $ref: '#/components/schemas/LoanStatus' }
+        user: { $ref: '#/components/schemas/UserSummary' }
+        equipment: { $ref: '#/components/schemas/Equipment' }
+        fee: { $ref: '#/components/schemas/Money' }
+        deposit: { $ref: '#/components/schemas/Money' }
+        conditionBefore: { $ref: '#/components/schemas/ConditionScore' }
+        conditionAfter:
+          allOf: [{ $ref: '#/components/schemas/ConditionScore' }]
+          nullable: true
+        result:
+          allOf: [{ $ref: '#/components/schemas/LoanResult' }]
+          nullable: true
+        depositRefund:
+          allOf: [{ $ref: '#/components/schemas/Money' }]
+          nullable: true
+        photoUrl: { type: string, nullable: true }
+        lentBy: { type: string, example: STF-005 }
+        receivedBy: { type: string, nullable: true }
+        borrowedAt: { type: string, format: date-time }
+        returnedAt: { type: string, format: date-time, nullable: true }
+
+    BookingSettings:
+      type: object
+      required: [openTime, closeTime, bookAheadDays, holdMinutes, holdExtendMinutes, earlyCheckinMinutes,
+                 noShowMinutes, cancelFullRefundHours, cancelHalfRefundHours, loanMaxItems, lostAfterDays]
+      properties:
+        openTime: { type: string, example: '08:00' }
+        closeTime: { type: string, example: '22:00' }
+        bookAheadDays: { type: integer, example: 30 }
+        holdMinutes: { type: integer, example: 10 }
+        holdExtendMinutes: { type: integer, example: 15 }
+        earlyCheckinMinutes: { type: integer, example: 15 }
+        noShowMinutes: { type: integer, example: 30 }
+        cancelFullRefundHours: { type: integer, example: 24 }
+        cancelHalfRefundHours: { type: integer, example: 2 }
+        loanMaxItems: { type: integer, example: 3 }
+        lostAfterDays: { type: integer, example: 3 }
+        updatedBy: { type: string, readOnly: true }
+        updatedAt: { type: string, format: date-time, readOnly: true }
+
+security:
+  - cookieAuth: []
