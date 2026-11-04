@@ -1,4 +1,5 @@
 services:
+
   mysql:
     image: mysql:8.4
     environment:
@@ -10,6 +11,12 @@ services:
     volumes:
       - mysqldata:/var/lib/mysql
       - ./infra/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+   
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - "1025:1025"     # port ที่ Spring ส่งอีเมลเข้ามา
+      - "8025:8025"     # หน้าเว็บสำหรับดูอีเมล
 
 volumes:
   mysqldata:

@@ -1,12 +1,22 @@
 package com.cosync.identity.controller;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.cosync.identity.dto.otp.VerifyOtpRequest;
+import com.cosync.identity.dto.register.RegisterRequest;
+import com.cosync.identity.dto.register.RegisterResponse;
 import com.cosync.identity.service.AuthService;
 
+import jakarta.validation.Valid;
+
+
 @RestController 
-@RequestMapping("/v1/auth")
+@RequestMapping("/auth")
 public class AuthController {
 
     private final AuthService authService;
@@ -15,4 +25,15 @@ public class AuthController {
         this.authService = authService;
     }
     
+    @PostMapping("/register")
+    @ResponseStatus(HttpStatus.CREATED)
+    public RegisterResponse register(@Valid @RequestBody RegisterRequest request) {
+        return authService.register(request);
+    }
+    
+    @PostMapping("/verify-otp")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
+        authService.verifyOtp(request);
+    }
 }

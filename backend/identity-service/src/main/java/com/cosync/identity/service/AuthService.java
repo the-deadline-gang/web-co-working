@@ -10,10 +10,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.cosync.identity.common.ApiException;
+import com.cosync.identity.dto.otp.VerifyOtpRequest;
 import com.cosync.identity.dto.register.RegisterRequest;
 import com.cosync.identity.dto.register.RegisterResponse;
 import com.cosync.identity.entity.User;
 import com.cosync.identity.repository.UserRepository;
+
 
 @Service
 public class AuthService {
@@ -22,10 +24,12 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final OtpService otpService;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder , OtpService otpService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.otpService = otpService;
     }
 
     @Transactional
@@ -50,8 +54,7 @@ public class AuthService {
         User saved = userRepository.save(user);
 
        
-        Instant otpExpiresAt = Instant.now().plusSeconds(10 * 60);
-
+        Instant otpExpiresAt = otpService.issue(saved); 
         return new RegisterResponse(saved.getId(), otpExpiresAt);
     }
 
@@ -60,4 +63,14 @@ public class AuthService {
         RANDOM.nextBytes(buffer);
         return HexFormat.of().formatHex(buffer);
     }
+
+    @Transactional(noRollbackFor = ApiException.class)
+    public void verifyOtp(VerifyOtpRequest request) {
+        User user = userRepository.findByEmail(request.email().trim().toLowerCase())
+                .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "OTP_INVALID", "รหัสไม่ถูกต้อง"));
+        otpService.verify(user, request.otp());
+        user.markEmailVerified();
+    }
+
+   
 }
