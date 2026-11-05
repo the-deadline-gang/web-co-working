@@ -13,6 +13,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * แปลง exception ทุกชนิดเป็น JSON รูปแบบเดียวกัน: { code, message, details }
@@ -67,6 +68,12 @@ public class GlobalExceptionHandler {
         log.error("Data integrity violation not mapped to an error code", e);
         return respond(HttpStatus.CONFLICT,
                 ErrorResponse.of("CONFLICT", "ข้อมูลขัดกับข้อมูลที่มีอยู่"));
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNotFound(NoResourceFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ErrorResponse.of("NOT_FOUND", "ไม่พบ path ที่เรียก"));
     }
 
     // ---------- 5xx: server ผิด ----------
