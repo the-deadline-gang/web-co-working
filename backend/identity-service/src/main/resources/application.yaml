@@ -24,3 +24,6 @@ app:
   otp:
     ttl-minutes: 10
     max-attempts: 5
+  jwt:
+    secret: change-me-to-a-random-string-at-least-32-chars
+    ttl-hours: 12

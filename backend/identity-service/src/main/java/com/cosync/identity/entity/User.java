@@ -87,6 +87,7 @@ public class User {
     public void recordLogin() {
         this.lastLoginAt = Instant.now();
     }
+    
     public Long getId() { return id; }
     public String getFirstName() { return firstName; }
     public String getLastName() { return lastName; }

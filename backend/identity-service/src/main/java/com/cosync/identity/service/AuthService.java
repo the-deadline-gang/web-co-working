@@ -10,11 +10,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.cosync.identity.common.ApiException;
+import com.cosync.identity.dto.login.LoginRequest;
+import com.cosync.identity.dto.login.LoginResult;
+import com.cosync.identity.dto.login.MeResponse;
 import com.cosync.identity.dto.otp.VerifyOtpRequest;
 import com.cosync.identity.dto.register.RegisterRequest;
 import com.cosync.identity.dto.register.RegisterResponse;
 import com.cosync.identity.entity.User;
 import com.cosync.identity.repository.UserRepository;
+import com.cosync.identity.security.JwtService;
 
 
 @Service
@@ -25,11 +29,13 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final OtpService otpService;
+    private final JwtService jwtService;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder , OtpService otpService) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder , OtpService otpService, JwtService jwtService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.otpService = otpService;
+        this.jwtService = jwtService;
     }
 
     @Transactional
@@ -72,5 +78,27 @@ public class AuthService {
         user.markEmailVerified();
     }
 
+    @Transactional
+    public LoginResult login(LoginRequest request) {
+        // 1–2: หา user และเทียบรหัสผ่าน
+        User user = userRepository.findByEmail(request.email().trim().toLowerCase())
+        .filter(u -> passwordEncoder.matches(request.password(), u.getPasswordHash()))
+        .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "BAD_CREDENTIALS", "อีเมลหรือรหัสผ่านไม่ถูกต้อง" ));
+
+         // 3: ยืนยันอีเมลแล้วหรือยัง
+        if(user.isEmailVerified() == false){
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "EMAIL_NOT_VERIFIED", "กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ");
+        }
+        // 4: ถูกระงับไหม
+        if(!user.isActive()){
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "ACCOUNT_SUSPENDED", "บัญชีผู้ใช้นี้ถูกระงับ");
+        }
+        // 5: บันทึกเวลา login
+        user.recordLogin();
+        // 6: สร้าง token แล้วคืน new LoginResult(token, MeResponse.from(user))
+        String token = jwtService.createToken(user);
+
+        return  new LoginResult(token, MeResponse.from(user));
+    }
    
 }
