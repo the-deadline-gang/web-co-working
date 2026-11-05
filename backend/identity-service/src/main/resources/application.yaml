@@ -25,5 +25,5 @@ app:
     ttl-minutes: 10
     max-attempts: 5
   jwt:
-    secret: change-me-to-a-random-string-at-least-32-chars
+    secret: ${JWT_SECRET}
     ttl-hours: 12
