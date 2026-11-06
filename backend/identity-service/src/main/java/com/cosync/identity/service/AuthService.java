@@ -3,6 +3,7 @@ package com.cosync.identity.service;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.HexFormat;
+import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -13,6 +14,7 @@ import com.cosync.identity.common.ApiException;
 import com.cosync.identity.dto.login.LoginRequest;
 import com.cosync.identity.dto.login.LoginResult;
 import com.cosync.identity.dto.login.MeResponse;
+import com.cosync.identity.dto.otp.ResendOtpRequest;
 import com.cosync.identity.dto.otp.VerifyOtpRequest;
 import com.cosync.identity.dto.register.RegisterRequest;
 import com.cosync.identity.dto.register.RegisterResponse;
@@ -105,6 +107,17 @@ public class AuthService {
     public MeResponse getMe(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "ไม่พบผู้ใช้"));
-        return MeResponse.from(user);
+        return MeResponse.from(user);   
+    }
+
+   
+    @Transactional
+    public void resendOtp(ResendOtpRequest request) {
+      
+        Optional<User> found = userRepository.findByEmail(request.email().trim().toLowerCase());
+        if (found.isEmpty() || found.get().isEmailVerified()) {
+            return;
+        }
+        otpService.resend(found.get());
     }
 }

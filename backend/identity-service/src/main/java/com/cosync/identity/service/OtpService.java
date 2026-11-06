@@ -12,7 +12,7 @@ import com.cosync.identity.common.ApiException;
 import com.cosync.identity.entity.EmailOtp;
 import com.cosync.identity.entity.User;
 import com.cosync.identity.mail.OtpMailer;
-import com.cosync.identity.repository.EmailOtpRepository; 
+import com.cosync.identity.repository.EmailOtpRepository;
 
 @Service
 public class OtpService {
@@ -20,23 +20,25 @@ public class OtpService {
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final EmailOtpRepository emailOtpRepository;
+   ;
     private final PasswordEncoder passwordEncoder;
     private final OtpMailer otpMailer;
     private final int ttlMinutes;
     private final int maxAttempts;
-
+    private final int resendCooldownSeconds;
     public OtpService(EmailOtpRepository emailOtpRepository,
                       PasswordEncoder passwordEncoder,
                       OtpMailer otpMailer,
                       @Value("${app.otp.ttl-minutes}") int ttlMinutes,
-                      @Value("${app.otp.max-attempts}") int maxAttempts) {
+                      @Value("${app.otp.max-attempts}") int maxAttempts,
+                      @Value("${app.otp.resend-cooldown-seconds}") int resendCooldownSeconds) {
         this.emailOtpRepository = emailOtpRepository;
         this.passwordEncoder = passwordEncoder;
         this.otpMailer = otpMailer;
         this.ttlMinutes = ttlMinutes;
         this.maxAttempts = maxAttempts;
+        this.resendCooldownSeconds = resendCooldownSeconds; 
 
-        // กำหนดค่าให้ฟิลด์ทั้ง 5 ตัว
     }
 
     /** สร้าง OTP ใหม่ ส่งอีเมล แล้วคืนเวลาหมดอายุ */
@@ -76,6 +78,23 @@ public class OtpService {
        
 
     }
+    
+    /**
+     * ขอรหัส OTP ใหม่ ถ้า OTP ล่าสุดยังไม่ครบ 1 นาที จะ throw ApiException
+     * @param user ข้อมูลผู้ใช้ที่ต้องการขอ OTP ใหม่
+     * @return เวลาหมดอายุของ OTP ใหม่
+     */
+    public Instant resend(User user) {
+        emailOtpRepository.findFirstByUserOrderByCreatedAtDesc(user)
+                .filter(latest -> Instant.now().isBefore(latest.getCreatedAt().plusSeconds(resendCooldownSeconds)))
+                .ifPresent(latest -> {
+                    throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "OTP_COOLDOWN", "กรุณารอสักครู่ก่อนขอรหัสใหม่");
+                });
+    
+        return issue(user);
+    }
         
+
+    
      
 }
