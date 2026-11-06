@@ -48,6 +48,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
                 .headers(h -> {
                     h.remove("X-User-Id");
                     h.remove("X-User-Type");
+                    h.remove("X-Permissions");
                 })
                 .build();
 
@@ -71,11 +72,14 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         } catch (JwtException | IllegalArgumentException e) {
             return unauthorized(exchange.getResponse());
         }
+        List<?> perms = claims.get("perms", List.class);
+        String permsHeader = perms == null ? "" : String.join(",", perms.stream().map(Object::toString).toList());
 
         // 5. ผ่าน  ใส่ตัวตนแล้วส่งต่อ
         ServerHttpRequest withUser = request.mutate()
                 .header("X-User-Id", claims.getSubject())
                 .header("X-User-Type", claims.get("typ", String.class))
+                .header("X-Permissions", permsHeader)
                 .build();
         return chain.filter(exchange.mutate().request(withUser).build());
     }

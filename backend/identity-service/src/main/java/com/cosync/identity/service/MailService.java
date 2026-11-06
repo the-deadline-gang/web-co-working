@@ -15,7 +15,7 @@ import com.cosync.identity.mail.OtpMailer;
 import com.cosync.identity.repository.EmailOtpRepository;
 
 @Service
-public class OtpService {
+public class MailService {
 
     private static final SecureRandom RANDOM = new SecureRandom();
 
@@ -26,7 +26,7 @@ public class OtpService {
     private final int ttlMinutes;
     private final int maxAttempts;
     private final int resendCooldownSeconds;
-    public OtpService(EmailOtpRepository emailOtpRepository,
+    public MailService(EmailOtpRepository emailOtpRepository,
                       PasswordEncoder passwordEncoder,
                       OtpMailer otpMailer,
                       @Value("${app.otp.ttl-minutes}") int ttlMinutes,
