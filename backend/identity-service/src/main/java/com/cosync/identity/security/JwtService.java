@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
 
+import com.cosync.identity.entity.Employee;
 import com.cosync.identity.entity.User;
 
 import io.jsonwebtoken.Jwts;
@@ -22,6 +23,8 @@ public class JwtService {
 
     private final SecretKey key;
     private final Duration ttl;
+
+    
 
     public JwtService(@Value("${app.jwt.secret}") String secret,
                       @Value("${app.jwt.ttl-hours}") int ttlHours) {
@@ -59,4 +62,18 @@ public class JwtService {
                 .maxAge(maxAge)
                 .build();
     }
+
+
+    public String createStaffToken(Employee employee) {
+        Instant now = Instant.now();
+        return Jwts.builder()
+        .subject(employee.getId().toString())
+        .claim("typ", "STAFF")
+        .claim("perms", employee.getRole().getPermissionCodes())
+        .issuedAt(java.util.Date.from(now))
+        .expiration(java.util.Date.from(now.plus(ttl)))
+        .signWith(key)
+        .compact();
+    }
 }
+

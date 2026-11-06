@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.cosync.identity.dto.login.LoginRequest;
 import com.cosync.identity.dto.login.LoginResult;
 import com.cosync.identity.dto.login.MeResponse;
+import com.cosync.identity.dto.login.StaffLoginResult;
+import com.cosync.identity.dto.login.StaffMeResponse;
 import com.cosync.identity.dto.otp.ResendOtpRequest;
 import com.cosync.identity.dto.otp.VerifyOtpRequest;
 import com.cosync.identity.dto.register.RegisterRequest;
@@ -65,5 +67,14 @@ public class AuthController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void resendOtp(@Valid @RequestBody ResendOtpRequest request) {
         authService.resendOtp(request);
+    }
+
+
+    @PostMapping("/staff/login")
+    public ResponseEntity<StaffMeResponse> staffLogin(@Valid @RequestBody LoginRequest request) {
+        StaffLoginResult result = authService.staffLogin(request);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, jwtService.createCookie(result.token()).toString())
+                .body(result.me());
     }
 }

@@ -14,11 +14,15 @@ import com.cosync.identity.common.ApiException;
 import com.cosync.identity.dto.login.LoginRequest;
 import com.cosync.identity.dto.login.LoginResult;
 import com.cosync.identity.dto.login.MeResponse;
+import com.cosync.identity.dto.login.StaffLoginResult;
+import com.cosync.identity.dto.login.StaffMeResponse;
 import com.cosync.identity.dto.otp.ResendOtpRequest;
 import com.cosync.identity.dto.otp.VerifyOtpRequest;
 import com.cosync.identity.dto.register.RegisterRequest;
 import com.cosync.identity.dto.register.RegisterResponse;
+import com.cosync.identity.entity.Employee;
 import com.cosync.identity.entity.User;
+import com.cosync.identity.repository.EmployeeRepository;
 import com.cosync.identity.repository.UserRepository;
 import com.cosync.identity.security.JwtService;
 
@@ -32,12 +36,14 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final OtpService otpService;
     private final JwtService jwtService;
+    private final EmployeeRepository employeeRepository;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder , OtpService otpService, JwtService jwtService) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder , OtpService otpService, JwtService jwtService,EmployeeRepository employeeRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.otpService = otpService;
         this.jwtService = jwtService;
+        this.employeeRepository = employeeRepository;
     }
 
     @Transactional
@@ -119,5 +125,21 @@ public class AuthService {
             return;
         }
         otpService.resend(found.get());
+    }
+
+
+    @Transactional
+    public StaffLoginResult staffLogin(LoginRequest request) {
+       
+        Employee employee = employeeRepository.findByEmail(request.email().trim().toLowerCase())
+        .filter(u -> passwordEncoder.matches(request.password(), u.getPasswordHash()))
+        .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "BAD_CREDENTIALS", "อีเมลหรือรหัสผ่านไม่ถูกต้อง" ));
+       
+        if(!employee.isActive()){
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "ACCOUNT_SUSPENDED", "บัญชีผู้ใช้นี้ถูกระงับ");
+        }
+       
+        employee.recordLogin();
+        return  new StaffLoginResult(jwtService.createStaffToken(employee), StaffMeResponse.from(employee));
     }
 }
