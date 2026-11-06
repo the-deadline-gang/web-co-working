@@ -101,4 +101,10 @@ public class AuthService {
         return  new LoginResult(token, MeResponse.from(user));
     }
    
+    @Transactional(readOnly = true)
+    public MeResponse getMe(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "ไม่พบผู้ใช้"));
+        return MeResponse.from(user);
+    }
 }
