@@ -1,5 +1,7 @@
-// หน้าแรก "/"
-// TODO: ส่งไปหน้า /auth (ถ้ายังไม่ login) หรือ /home (ถ้า login แล้ว)
+import { redirect } from "next/navigation";
+
+// หน้าแรก "/" → พาไปหน้า U1 (/auth)
+// TODO: พอมีระบบ login แล้ว ถ้า login อยู่ให้ไป /home แทน
 export default function RootPage() {
-  return <p>หน้าแรก</p>;
+  redirect("/auth");
 }
