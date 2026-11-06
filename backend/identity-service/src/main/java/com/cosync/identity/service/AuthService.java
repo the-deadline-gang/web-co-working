@@ -3,6 +3,7 @@ package com.cosync.identity.service;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.HexFormat;
+import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -13,10 +14,15 @@ import com.cosync.identity.common.ApiException;
 import com.cosync.identity.dto.login.LoginRequest;
 import com.cosync.identity.dto.login.LoginResult;
 import com.cosync.identity.dto.login.MeResponse;
+import com.cosync.identity.dto.login.StaffLoginResult;
+import com.cosync.identity.dto.login.StaffMeResponse;
+import com.cosync.identity.dto.otp.ResendOtpRequest;
 import com.cosync.identity.dto.otp.VerifyOtpRequest;
 import com.cosync.identity.dto.register.RegisterRequest;
 import com.cosync.identity.dto.register.RegisterResponse;
+import com.cosync.identity.entity.Employee;
 import com.cosync.identity.entity.User;
+import com.cosync.identity.repository.EmployeeRepository;
 import com.cosync.identity.repository.UserRepository;
 import com.cosync.identity.security.JwtService;
 
@@ -28,14 +34,16 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final OtpService otpService;
+    private final MailService otpService;
     private final JwtService jwtService;
+    private final EmployeeRepository employeeRepository;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder , OtpService otpService, JwtService jwtService) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder , MailService otpService, JwtService jwtService,EmployeeRepository employeeRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.otpService = otpService;
         this.jwtService = jwtService;
+        this.employeeRepository = employeeRepository;
     }
 
     @Transactional
@@ -101,4 +109,37 @@ public class AuthService {
         return  new LoginResult(token, MeResponse.from(user));
     }
    
+    @Transactional(readOnly = true)
+    public MeResponse getMe(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "ไม่พบผู้ใช้"));
+        return MeResponse.from(user);   
+    }
+
+   
+    @Transactional
+    public void resendOtp(ResendOtpRequest request) {
+      
+        Optional<User> found = userRepository.findByEmail(request.email().trim().toLowerCase());
+        if (found.isEmpty() || found.get().isEmailVerified()) {
+            return;
+        }
+        otpService.resend(found.get());
+    }
+
+
+    @Transactional
+    public StaffLoginResult staffLogin(LoginRequest request) {
+       
+        Employee employee = employeeRepository.findByEmail(request.email().trim().toLowerCase())
+        .filter(u -> passwordEncoder.matches(request.password(), u.getPasswordHash()))
+        .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "BAD_CREDENTIALS", "อีเมลหรือรหัสผ่านไม่ถูกต้อง" ));
+       
+        if(!employee.isActive()){
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "ACCOUNT_SUSPENDED", "บัญชีผู้ใช้นี้ถูกระงับ");
+        }
+       
+        employee.recordLogin();
+        return  new StaffLoginResult(jwtService.createStaffToken(employee), StaffMeResponse.from(employee));
+    }
 }

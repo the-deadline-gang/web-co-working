@@ -59,6 +59,29 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
 
+  /auth/resend-otp:
+    post:
+      tags: [auth]
+      summary: ขอ OTP ใหม่ (F2)
+      description: |
+        ตอบ 204 เสมอ แม้ไม่เจออีเมลหรือยืนยันไปแล้ว เพื่อไม่ให้รู้ว่ามีอีเมลนี้ในระบบ
+        ขอใหม่ได้ทุก 60 วินาที
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResendOtpRequest' }
+      responses:
+        '204': { description: ถ้ามีบัญชีที่ยังไม่ยืนยัน จะส่ง OTP ใหม่ไปที่อีเมล }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '429':
+          description: ขอถี่เกินไป (code = OTP_COOLDOWN)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+
   /auth/login:
     post:
       tags: [auth]
@@ -424,6 +447,14 @@ components:
       properties:
         email: { type: string, format: email }
         otp: { type: string, pattern: '^[0-9]{6}$', example: '482913' }
+
+    ResendOtpRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email, maxLength: 120, example: nan@example.com }
+
+
 
     LoginRequest:
       type: object

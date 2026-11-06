@@ -24,6 +24,8 @@ app:
   otp:
     ttl-minutes: 10
     max-attempts: 5
+    resend-cooldown-seconds: 60
   jwt:
     secret: ${JWT_SECRET}
     ttl-hours: 12
+   

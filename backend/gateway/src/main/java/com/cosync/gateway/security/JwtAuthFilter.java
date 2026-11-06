@@ -2,7 +2,6 @@ package com.cosync.gateway.security;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Optional;
 
 import javax.crypto.SecretKey;
 
@@ -24,23 +23,17 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import reactor.core.publisher.Mono;
 
-/**
- * ตรวจ JWT ทุก request ก่อนส่งต่อไปยัง service
- * ผ่านแล้วใส่ X-User-Id และ X-User-Type ให้ service ข้างหลังใช้
- */
+/** ตรวจ JWT ทุก request ผ่านแล้วใส่ X-User-Id / X-User-Type ให้ service ข้างหลัง */
 @Component
 public class JwtAuthFilter implements GlobalFilter, Ordered {
 
-    private static final String COOKIE_NAME = "access_token";
-    private static final String HEADER_USER_ID = "X-User-Id";
-    private static final String HEADER_USER_TYPE = "X-User-Type";
-
-    /** path ที่ไม่ต้อง login (นับหลังตัด /api ออกแล้ว) */
     private static final List<String> PUBLIC_PATHS = List.of(
-            "/auth/register",
-            "/auth/verify-otp",
-            "/auth/login",
-            "/auth/logout");
+            "/api/auth/register",
+            "/api/auth/verify-otp",
+            "/api/auth/resend-otp",
+            "/api/auth/login",
+            "/api/auth/logout",
+            "/api/auth/staff/login");
 
     private final SecretKey key;
 
@@ -50,67 +43,45 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        ServerHttpRequest request = removeSpoofedHeaders(exchange.getRequest());
+        // 1. ลบ header ที่ client อาจปลอมมา
+        ServerHttpRequest request = exchange.getRequest().mutate()
+                .headers(h -> {
+                    h.remove("X-User-Id");
+                    h.remove("X-User-Type");
+                    h.remove("X-Permissions");
+                })
+                .build();
 
-        if (isPublic(request)) {
-            return forward(exchange, chain, request);
+        // 2. path สาธารณะ  ผ่านเลย
+        if (PUBLIC_PATHS.contains(request.getPath().value())) {
+            return chain.filter(exchange.mutate().request(request).build());
         }
 
-        Optional<Claims> claims = readToken(request).flatMap(this::verify);
-        if (claims.isEmpty()) {
+        // 3. ไม่มี cookie  401
+        HttpCookie cookie = request.getCookies().getFirst("access_token");
+        if (cookie == null) {
             return unauthorized(exchange.getResponse());
         }
 
-        return forward(exchange, chain, withUserHeaders(request, claims.get()));
-    }
-
-    // ---------- แต่ละขั้น ----------
-
-    /** ลบ header ตัวตนที่ browser อาจปลอมส่งมา */
-    private ServerHttpRequest removeSpoofedHeaders(ServerHttpRequest request) {
-        return request.mutate()
-                .headers(h -> {
-                    h.remove(HEADER_USER_ID);
-                    h.remove(HEADER_USER_TYPE);
-                })
-                .build();
-    }
-
-    private boolean isPublic(ServerHttpRequest request) {
-        String path = request.getPath().value().replaceFirst("^/api", "");
-        return PUBLIC_PATHS.contains(path);
-    }
-
-    /** อ่าน token จาก cookie ถ้าไม่มีหรือว่างจะได้ Optional ว่าง */
-    private Optional<String> readToken(ServerHttpRequest request) {
-        return Optional.ofNullable(request.getCookies().getFirst(COOKIE_NAME))
-                .map(HttpCookie::getValue)
-                .filter(value -> !value.isBlank());
-    }
-
-    /** ตรวจลายเซ็นและวันหมดอายุ ถ้าไม่ผ่านจะได้ Optional ว่าง */
-    private Optional<Claims> verify(String token) {
+        // 4. ตรวจ token ไม่ผ่าน  401
+        Claims claims;
         try {
-            return Optional.of(Jwts.parser().verifyWith(key).build()
-                    .parseSignedClaims(token)
-                    .getPayload());
+            claims = Jwts.parser().verifyWith(key).build()
+                    .parseSignedClaims(cookie.getValue())
+                    .getPayload();
         } catch (JwtException | IllegalArgumentException e) {
-            return Optional.empty();
+            return unauthorized(exchange.getResponse());
         }
-    }
+        List<?> perms = claims.get("perms", List.class);
+        String permsHeader = perms == null ? "" : String.join(",", perms.stream().map(Object::toString).toList());
 
-    private ServerHttpRequest withUserHeaders(ServerHttpRequest request, Claims claims) {
-        return request.mutate()
-                .header(HEADER_USER_ID, claims.getSubject())
-                .header(HEADER_USER_TYPE, claims.get("typ", String.class))
+        // 5. ผ่าน  ใส่ตัวตนแล้วส่งต่อ
+        ServerHttpRequest withUser = request.mutate()
+                .header("X-User-Id", claims.getSubject())
+                .header("X-User-Type", claims.get("typ", String.class))
+                .header("X-Permissions", permsHeader)
                 .build();
-    }
-
-    // ---------- ส่งต่อ / ปฏิเสธ ----------
-
-    private Mono<Void> forward(ServerWebExchange exchange, GatewayFilterChain chain,
-                               ServerHttpRequest request) {
-        return chain.filter(exchange.mutate().request(request).build());
+        return chain.filter(exchange.mutate().request(withUser).build());
     }
 
     private Mono<Void> unauthorized(ServerHttpResponse response) {
@@ -121,9 +92,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         return response.writeWith(Mono.just(response.bufferFactory().wrap(body)));
     }
 
-    /** ทำงานก่อน filter อื่นทั้งหมด */
     @Override
     public int getOrder() {
-        return -1;
+        return -1;   // ทำก่อน filter อื่น
     }
 }
