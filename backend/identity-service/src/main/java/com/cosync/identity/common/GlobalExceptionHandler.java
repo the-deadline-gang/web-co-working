@@ -13,6 +13,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
@@ -75,6 +76,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ErrorResponse.of("NOT_FOUND", "ไม่พบ path ที่เรียก"));
     }
+
+  
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleBadParam(MethodArgumentTypeMismatchException e) {
+        return ResponseEntity.badRequest()
+                .body(ErrorResponse.of("VALIDATION_FAILED", "ค่าของ " + e.getName() + " ไม่ถูกต้อง"));
+    }
+
 
     // ---------- 5xx: server ผิด ----------
 

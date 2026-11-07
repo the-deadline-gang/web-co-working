@@ -8,8 +8,6 @@ import org.springframework.stereotype.Repository;
 import com.cosync.identity.entity.EmailOtp;
 import com.cosync.identity.entity.User;
 
-
-
 @Repository
 public interface EmailOtpRepository  extends JpaRepository<EmailOtp, Long> {
 

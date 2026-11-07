@@ -84,6 +84,17 @@ public class Employee {
         this.lastLoginAt = Instant.now();
     }
 
+    public void updateProfile(Role role, String firstName, String lastName, String email, String phone) {
+        this.role = role;
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.email = email;
+        this.phone = phone;
+    }
+    
+    public void changeStatus(EmployeeStatus status) {
+        this.status = status;
+    }
     // ---------- getter ----------
 
     public Long getId() { return id; }
