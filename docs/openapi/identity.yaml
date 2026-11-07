@@ -1,11 +1,20 @@
 openapi: 3.0.3
 info:
   title: CO-SYNC Identity API
-  version: 0.1.0
+  version: 0.2.0
   description: |
-    สัญญา API ของ identity-service (Sprint 0)
+    สัญญา API ของ identity-service
     Frontend เรียกผ่าน Gateway ที่ /api/... เสมอ
-    Login สำเร็จแล้ว Gateway/Identity จะตั้ง cookie `access_token` (HttpOnly) ให้เอง
+    Login สำเร็จแล้ว identity จะตั้ง cookie `access_token` (HttpOnly, JWT HS512, อายุ 12 ชั่วโมง) ให้เอง
+
+    **สิทธิ์:** endpoint ที่มี `x-permission` ต้องเป็นพนักงานที่ role มีสิทธิ์นั้น ไม่มีจะได้ 403
+    สิทธิ์ถูกฝังใน token ตอน login ถ้า Admin เปลี่ยน role หรือสิทธิ์ จะมีผลเมื่อพนักงานคนนั้น login ใหม่
+
+    **เปลี่ยนจาก 0.1.0**
+    - เพิ่ม `POST /auth/resend-otp` และ `PUT /auth/staff/password`
+    - `POST /admin/employees` ส่งรหัสผ่านชั่วคราวทางอีเมล (แทนลิงก์ตั้งรหัส)
+    - ระบุ error code ครบทุก endpoint ที่ทำแล้ว
+    - `Role.employeeCount` ยังไม่ได้ทำ (ไม่มีใน response)
 servers:
   - url: http://localhost:8080/api
     description: ผ่าน Gateway (docker compose)
@@ -54,7 +63,10 @@ paths:
       responses:
         '204': { description: ยืนยันแล้ว เข้าสู่ระบบได้ }
         '400':
-          description: OTP ผิด หมดอายุ หรือผิดเกิน 5 ครั้ง (code = OTP_INVALID, OTP_EXPIRED, OTP_LOCKED)
+          description: |
+            OTP ผิด หมดอายุ หรือผิดเกิน 5 ครั้ง (code = OTP_INVALID, OTP_EXPIRED, OTP_LOCKED)
+            ไม่พบอีเมลก็ได้ OTP_INVALID เหมือนกัน หรือข้อมูลผิดรูปแบบ (code = VALIDATION_FAILED)
+            ถ้าได้ OTP_EXPIRED หรือ OTP_LOCKED ให้เรียก /auth/resend-otp
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
@@ -64,7 +76,8 @@ paths:
       tags: [auth]
       summary: ขอ OTP ใหม่ (F2)
       description: |
-        ตอบ 204 เสมอ แม้ไม่เจออีเมลหรือยืนยันไปแล้ว เพื่อไม่ให้รู้ว่ามีอีเมลนี้ในระบบ
+        ใช้เมื่อ OTP หมดอายุหรือกรอกผิดจนถูกล็อก OTP ใหม่ใช้ได้ทันที OTP เก่าจะใช้ไม่ได้อีก
+        ตอบ 204 เสมอ แม้ไม่พบอีเมลหรืออีเมลยืนยันไปแล้ว (ไม่บอกว่าอีเมลนี้มีในระบบหรือไม่)
         ขอใหม่ได้ทุก 60 วินาที
       security: []
       requestBody:
@@ -73,14 +86,13 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/ResendOtpRequest' }
       responses:
-        '204': { description: ถ้ามีบัญชีที่ยังไม่ยืนยัน จะส่ง OTP ใหม่ไปที่อีเมล }
+        '204': { description: ถ้ามีบัญชีที่ยังไม่ยืนยัน ระบบส่ง OTP ใหม่ไปที่อีเมลแล้ว }
         '400': { $ref: '#/components/responses/ValidationError' }
         '429':
           description: ขอถี่เกินไป (code = OTP_COOLDOWN)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
-
 
   /auth/login:
     post:
@@ -102,7 +114,9 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Me' }
         '401':
-          description: อีเมลหรือรหัสผ่านผิด (code = BAD_CREDENTIALS) หรือยังไม่ยืนยันอีเมล (code = EMAIL_NOT_VERIFIED)
+          description: |
+            อีเมลหรือรหัสผ่านผิด (code = BAD_CREDENTIALS)
+            ยังไม่ยืนยันอีเมล (code = EMAIL_NOT_VERIFIED) หรือบัญชีถูกระงับ (code = ACCOUNT_SUSPENDED)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
@@ -129,6 +143,30 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
 
+  /auth/staff/password:
+    put:
+      tags: [auth]
+      summary: พนักงานเปลี่ยนรหัสผ่านของตัวเอง
+      description: |
+        พนักงานทุก role ใช้ได้ สมาชิกเรียกจะได้ 403
+        token เดิมยังใช้ได้จนหมดอายุ ไม่ต้อง login ใหม่ทันที
+      x-staff-only: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangePasswordRequest' }
+      responses:
+        '204': { description: เปลี่ยนแล้ว }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422':
+          description: รหัสปัจจุบันผิด (code = CURRENT_PASSWORD_INCORRECT) หรือรหัสใหม่เหมือนเดิม (code = SAME_PASSWORD)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
   /auth/logout:
     post:
       tags: [auth]
@@ -140,6 +178,8 @@ paths:
     get:
       tags: [me]
       summary: ข้อมูลของสมาชิกที่ login อยู่
+      description: สำหรับสมาชิกเท่านั้น พนักงานเรียกจะได้ 403
+      x-member-only: true
       responses:
         '200':
           description: OK
@@ -147,6 +187,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Me' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
 
   /me/qr-secret:
     get:
@@ -185,6 +226,7 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/Permission' }
+        '403': { $ref: '#/components/responses/Forbidden' }
 
   /admin/roles:
     get:
@@ -200,6 +242,7 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/Role' }
+        '403': { $ref: '#/components/responses/Forbidden' }
     post:
       tags: [admin]
       summary: สร้าง Role
@@ -212,12 +255,19 @@ paths:
             schema: { $ref: '#/components/schemas/RoleInput' }
       responses:
         '201':
-          description: OK
+          description: สร้างแล้ว
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Role' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '409':
-          description: code = ROLE_NAME_TAKEN
+          description: ชื่อซ้ำ (code = ROLE_NAME_TAKEN)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422':
+          description: มี code ของสิทธิ์ที่ไม่มีอยู่ในระบบ (code = PERMISSION_NOT_FOUND)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
@@ -244,6 +294,23 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Role' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: ไม่พบ role (code = ROLE_NOT_FOUND)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: ชื่อซ้ำกับ role อื่น (code = ROLE_NAME_TAKEN)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422':
+          description: มี code ของสิทธิ์ที่ไม่มีอยู่ในระบบ (code = PERMISSION_NOT_FOUND)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
 
   /admin/employees:
     get:
@@ -254,6 +321,7 @@ paths:
       parameters:
         - name: status
           in: query
+          description: ไม่ใส่ = ทั้งหมด เรียงตาม employeeId
           schema: { type: string, enum: [ACTIVE, SUSPENDED] }
       responses:
         '200':
@@ -263,9 +331,19 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/Employee' }
+        '400':
+          description: ค่า status ไม่ถูกต้อง (code = VALIDATION_FAILED)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403': { $ref: '#/components/responses/Forbidden' }
     post:
       tags: [admin]
-      summary: เพิ่มพนักงาน ระบบส่งอีเมลให้ตั้งรหัสผ่านเอง (F1 ขั้น 1)
+      summary: เพิ่มพนักงาน (F1 ขั้น 1)
+      description: |
+        ระบบสุ่มรหัสผ่านชั่วคราว 12 ตัวแล้วส่งไปที่อีเมลของพนักงาน Admin ไม่เห็นรหัสนี้
+        พนักงานควรเปลี่ยนรหัสด้วย PUT /auth/staff/password หลัง login ครั้งแรก
+        พนักงานใหม่มีสถานะ ACTIVE เสมอ
       x-permission: employee.manage
       x-sprint: 1
       requestBody:
@@ -275,12 +353,19 @@ paths:
             schema: { $ref: '#/components/schemas/EmployeeInput' }
       responses:
         '201':
-          description: OK
+          description: สร้างแล้ว
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Employee' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '409':
-          description: code = EMAIL_TAKEN
+          description: อีเมลซ้ำ (code = EMAIL_TAKEN)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422':
+          description: roleId ไม่มีอยู่จริง (code = ROLE_NOT_FOUND)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
@@ -289,7 +374,10 @@ paths:
     put:
       tags: [admin]
       summary: แก้ข้อมูล เปลี่ยน Role หรือระงับพนักงาน
-      x-permission: employee.manage
+      description: |
+        ส่งข้อมูลครบทุกช่อง (แทนที่ทั้งก้อน) ไม่ส่ง status = คงสถานะเดิม
+        แก้ชื่อหรือเบอร์ของตัวเองได้ แต่เปลี่ยน role หรือระงับบัญชีตัวเองไม่ได้
+        พนักงานที่ถูกระงับจะ login ไม่ได้ (ACCOUNT_SUSPENDED) ส่วน token เดิมยังใช้ได้จนหมดอายุ
       x-sprint: 1
       parameters:
         - name: employeeId
@@ -312,6 +400,23 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Employee' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: ไม่พบพนักงาน (code = EMPLOYEE_NOT_FOUND)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: อีเมลซ้ำกับพนักงานคนอื่น (code = EMAIL_TAKEN)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422':
+          description: roleId ไม่มีอยู่จริง (code = ROLE_NOT_FOUND) หรือเปลี่ยน role / ระงับตัวเอง (code = CANNOT_MODIFY_SELF)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
 
   /internal/qr/resolve:
     post:
@@ -402,6 +507,11 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: login แล้วแต่ไม่มีสิทธิ์ (code = FORBIDDEN)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
     ValidationError:
       description: ข้อมูลไม่ครบหรือรูปแบบผิด (code = VALIDATION_FAILED) details บอกว่าช่องไหนผิด
       content:
@@ -432,7 +542,7 @@ components:
         lastName: { type: string, maxLength: 60, example: ภาคภูมิ }
         email: { type: string, format: email, example: nannapat@example.com }
         phone: { type: string, pattern: '^0[0-9]{9}$', example: '0806062300' }
-        password: { type: string, minLength: 8, example: 'P@ssw0rd123' }
+        password: { type: string, minLength: 8, maxLength: 72, example: 'P@ssw0rd123' }
         acceptTerms: { type: boolean, example: true }
 
     RegisterResponse:
@@ -452,9 +562,14 @@ components:
       type: object
       required: [email]
       properties:
-        email: { type: string, format: email, maxLength: 120, example: nan@example.com }
+        email: { type: string, format: email, maxLength: 120, example: nannapat@example.com }
 
-
+    ChangePasswordRequest:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword: { type: string }
+        newPassword: { type: string, minLength: 8, maxLength: 72 }
 
     LoginRequest:
       type: object
@@ -479,7 +594,7 @@ components:
         employeeId: { type: integer, format: int64, example: 7 }
         displayId: { type: string, example: STF-007 }
         firstName: { type: string }
-        role: { type: string, example: พนักงาน Counter }
+        role: { type: string, example: Counter }
         permissions:
           type: array
           items: { type: string }
@@ -497,15 +612,16 @@ components:
       type: object
       properties:
         code: { type: string, example: loan.record }
-        name: { type: string, example: บันทึกยืม-คืน }
+        name: { type: string, example: Record equipment loans }
 
     RoleInput:
       type: object
       required: [name, permissions]
       properties:
-        name: { type: string, maxLength: 60, example: พนักงาน Counter }
+        name: { type: string, maxLength: 60, example: Shift Lead }
         permissions:
           type: array
+          description: code ของสิทธิ์ ส่ง [] ได้ถ้ายังไม่ให้สิทธิ์อะไร
           items: { type: string }
           example: [loan.record, checkout.override]
 
@@ -514,7 +630,6 @@ components:
         - type: object
           properties:
             roleId: { type: integer, format: int64 }
-            employeeCount: { type: integer }
         - $ref: '#/components/schemas/RoleInput'
 
     EmployeeInput:
@@ -523,8 +638,8 @@ components:
       properties:
         firstName: { type: string, maxLength: 60 }
         lastName: { type: string, maxLength: 60 }
-        email: { type: string, format: email }
-        phone: { type: string, pattern: '^0[0-9]{9}$' }
+        email: { type: string, format: email, maxLength: 120 }
+        phone: { type: string, pattern: '^0[0-9]{9}$', description: ไม่บังคับ }
         roleId: { type: integer, format: int64 }
 
     Employee:
@@ -535,7 +650,7 @@ components:
         firstName: { type: string }
         lastName: { type: string }
         email: { type: string }
-        phone: { type: string }
+        phone: { type: string, nullable: true }
         roleId: { type: integer, format: int64 }
         roleName: { type: string }
         status: { type: string, enum: [ACTIVE, SUSPENDED] }

@@ -1,5 +1,6 @@
 package com.cosync.identity.entity;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -48,7 +49,14 @@ public class Role {
                 .map(Permission::getCode)
                 .collect(Collectors.toSet());
     }
-
+    public void rename(String name) {
+        this.name = name;
+    }
+    
+    public void replacePermissions(Collection<Permission> newPermissions) {
+        this.permissions.clear();
+        this.permissions.addAll(newPermissions);
+    }
     public Long getId() { return id; }
     public String getName() { return name; }
     public Set<Permission> getPermissions() { return permissions; }
