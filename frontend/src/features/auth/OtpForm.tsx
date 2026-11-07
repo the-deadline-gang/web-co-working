@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-
+import { useRouter } from "next/navigation";
 const INK = "#451A03";
 
 export function OtpForm() {
@@ -12,15 +12,29 @@ export function OtpForm() {
   const expiresAt = params.get("expiresAt"); // เวลาหมดอายุของรหัส (ได้มาตอนสมัคร)
   const [otp, setOtp] = useState("");
   const [focused, setFocused] = useState(false); // ช่องกรอกถูกเลือกอยู่ไหม (ใช้โชว์เคอร์เซอร์)
+  const router = useRouter();
 
   const remaining = 6 - otp.length;
   const secondsLeft = useCountdown(expiresAt, 10 * 60); // รหัสหมดอายุ (ปกติ 10 นาที)
   const resendIn = useCountdown(null, 60); // รอ 1 นาทีก่อนกดส่งรหัสใหม่ได้
   const expired = secondsLeft === 0;
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    console.log({ email, otp });
+
+    const res = await fetch("/api/auth/verify-otp",{
+      method: "POST",
+      headers: {"Content-Type" : "application/json"},
+      body: JSON.stringify({email, otp}),
+    });
+
+    console.log(res.status);
+
+    if(res.status === 204){
+      router.push("/auth");
+
+
+    }
   }
 
   return (
