@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.cosync.identity.common.ApiException;
 import com.cosync.identity.dto.employee.ChangePasswordRequest;
 import com.cosync.identity.dto.login.LoginRequest;
 import com.cosync.identity.dto.login.LoginResult;
@@ -23,6 +22,7 @@ import com.cosync.identity.dto.otp.VerifyOtpRequest;
 import com.cosync.identity.dto.register.RegisterRequest;
 import com.cosync.identity.dto.register.RegisterResponse;
 import com.cosync.identity.security.JwtService;
+import com.cosync.identity.security.StaffOnly;
 import com.cosync.identity.service.AuthService;
 import com.cosync.identity.service.EmployeeService;
 
@@ -87,14 +87,10 @@ public class AuthController {
 
     @PutMapping("/staff/password")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @StaffOnly
     public void changeStaffPassword(
-            @RequestHeader("X-User-Id") Long userId,
-            @RequestHeader("X-User-Type") String userType,
+            @RequestHeader("X-User-Id") Long employeeId,
             @Valid @RequestBody ChangePasswordRequest request) {
-       
-        if (!"STAFF".equals(userType)) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "ไม่มีสิทธิ์เข้าถึง");
-        }
-        employeeService.changePassword(userId, request);
+        employeeService.changePassword(employeeId, request);
     }
 }
