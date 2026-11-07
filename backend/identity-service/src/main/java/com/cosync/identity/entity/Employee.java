@@ -95,6 +95,10 @@ public class Employee {
     public void changeStatus(EmployeeStatus status) {
         this.status = status;
     }
+
+    public void changePassword(String newPasswordHash) {
+        this.passwordHash = newPasswordHash;
+    }
     // ---------- getter ----------
 
     public Long getId() { return id; }

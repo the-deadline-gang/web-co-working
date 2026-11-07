@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.cosync.identity.common.ApiException;
+import com.cosync.identity.dto.employee.ChangePasswordRequest;
 import com.cosync.identity.dto.employee.CreateEmployeeRequest;
 import com.cosync.identity.dto.employee.EmployeeResponse;
 import com.cosync.identity.dto.employee.UpdateEmployeeRequest;
@@ -125,4 +126,25 @@ public class EmployeeService {
         
         return EmployeeResponse.from(employee);
     }
+
+    /**
+     * เปลี่ยนรหัสผ่านของพนักงาน โดยต้องตรวจสอบรหัสผ่านปัจจุบันก่อน และรหัสผ่านใหม่ต้องไม่เหมือนรหัสผ่านปัจจุบัน
+     * @param employeeId id ของพนักงานที่ต้องการเปลี่ยนรหัสผ่าน
+     * @param request ข้อมูลรหัสผ่านปัจจุบันและรหัสผ่านใหม่
+     */
+    @Transactional
+    public void changePassword(Long employeeId, ChangePasswordRequest request) {
+  
+        Employee employee = employeeRepository.findById(employeeId)
+        .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "EMPLOYEE_NOT_FOUND", "ไม่พบพนักงานที่ระบุ"));
+        if (!passwordEncoder.matches(request.currentPassword(), employee.getPasswordHash())) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, "CURRENT_PASSWORD_INCORRECT", "รหัสผ่านปัจจุบันไม่ถูกต้อง");   
+        }
+        if (passwordEncoder.matches(request.newPassword(), employee.getPasswordHash())) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, "SAME_PASSWORD", "รหัสผ่านใหม่ต้องไม่เหมือนรหัสผ่านปัจจุบัน");
+            
+        }
+        employee.changePassword(passwordEncoder.encode(request.newPassword()));
+    }
+    
 }
