@@ -2,8 +2,7 @@
 // ฟอร์มกรอก OTP 6 หลัก  →  POST /auth/verify-otp
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 const INK = "#451A03";
 
 export function OtpForm() {
@@ -13,6 +12,7 @@ export function OtpForm() {
   const [otp, setOtp] = useState("");
   const [focused, setFocused] = useState(false); // ช่องกรอกถูกเลือกอยู่ไหม (ใช้โชว์เคอร์เซอร์)
   const router = useRouter();
+  const [error, setError] = useState(""); // ข้อความ error · ว่าง = ไม่มี error
 
   const remaining = 6 - otp.length;
   const secondsLeft = useCountdown(expiresAt, 10 * 60); // รหัสหมดอายุ (ปกติ 10 นาที)
@@ -21,6 +21,7 @@ export function OtpForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError(""); // กดใหม่ → ล้าง error เก่าก่อน
 
     const res = await fetch("/api/auth/verify-otp",{
       method: "POST",
@@ -32,8 +33,9 @@ export function OtpForm() {
 
     if(res.status === 204){
       router.push("/auth");
-
-
+    }else{
+      const data = await res.json();
+      setError(data.message);
     }
   }
 
@@ -81,7 +83,10 @@ export function OtpForm() {
         <div className="relative">
           <input
             value={otp}
-            onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))} // รับแค่ตัวเลข ไม่เกิน 6 ตัว
+            onChange={(e) => {
+              setOtp(e.target.value.replace(/\D/g, "").slice(0, 6)); // รับแค่ตัวเลข ไม่เกิน 6 ตัว
+              setError(""); // พิมพ์แก้ → กรอบแดงหายทันที
+            }}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
             inputMode="numeric"
@@ -99,7 +104,9 @@ export function OtpForm() {
                   key={i}
                   className={`flex h-20 items-center justify-center rounded-xl border-2 bg-white text-3xl font-bold text-[#451A03] ${
                     filled
-                      ? "border-[#451A03] shadow-[4px_4px_0_#451A03]"
+                      ? error
+                        ? "border-[#D7263D] shadow-[4px_4px_0_#D7263D]" // มี error → แดง
+                        : "border-[#451A03] shadow-[4px_4px_0_#451A03]" // ปกติ → น้ำตาล
                       : current
                         ? "border-[#1E44E6] shadow-[0_4px_0_#1E44E6]"
                         : "border-[#EBDDBE]"
@@ -111,8 +118,9 @@ export function OtpForm() {
             })}
           </div>
         </div>
-        <p className="mt-3 h-5 text-sm text-[#6B5A4A]">
-          {remaining > 0 ? `กรอกอีก ${remaining} หลัก` : "กรอกครบแล้ว"}
+        {/* มี error → ข้อความแดงจาก backend · ไม่มี → บอกว่ากรอกอีกกี่หลัก */}
+        <p className={`mt-3 h-5 text-sm ${error ? "font-semibold text-[#D7263D]" : "text-[#6B5A4A]"}`}>
+          {error ? error : remaining > 0 ? `กรอกอีก ${remaining} หลัก` : "กรอกครบแล้ว"}
         </p>
       </div>
 
