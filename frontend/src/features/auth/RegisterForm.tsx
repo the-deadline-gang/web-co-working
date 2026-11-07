@@ -2,22 +2,46 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-// ฟอร์มสมัครสมาชิก (U1)  →  POST /auth/register
-// TODO: ส่งข้อมูล → ถ้าสำเร็จไปหน้า /verify-otp · ถ้า error แสดงใต้ช่องที่ผิด
+
 export function RegisterForm() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
-  const [phon, setPhon] = useState("");
+  const [phone, setPhone] = useState("");
   const [age, setAge] = useState(""); // ใส่ไว้รอเลย ถ้าไม่ตรงตอนยิง API ค่อยเปลี่ยนให้ตรง
   const [sex, setSex] = useState("");
   const [password, setPassWord] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false); // ติ๊ก = true, ไม่ติ๊ก = false
+  const router = useRouter();
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    console.log({ firstName, lastName });
+  async function handleSubmit(e: React.FormEvent) {
+  e.preventDefault();
+
+  // ส่งข้อมูลไปที่ backend
+  const res = await fetch("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      firstName,
+      lastName,
+      email,
+      phone,       
+      password,
+      acceptTerms,
+    }),
+  });
+
+  // อ่านคำตอบจาก backend
+  const data = await res.json();
+  console.log(res.status, data);
+
+  if(res.status === 201){
+    router.push(
+      `/verify-otp?email=${encodeURIComponent(email)}&expiresAt=${encodeURIComponent(data.otpExpiresAt)}`,
+    );
+
   }
+}
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-lg space-y-4">
@@ -65,8 +89,8 @@ export function RegisterForm() {
           <input
             inputMode="tel"
             placeholder="0812345678"
-            value={phon}
-            onChange={(e) => setPhon(e.target.value)}
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
             className="w-full rounded-xl border-2 border-[#D9C49A] bg-white px-4 py-3 text-[#451A03] outline-none focus:border-[#1E44E6]"
           />
         </label>

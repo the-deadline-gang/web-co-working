@@ -4,10 +4,24 @@ export function LoginForm() {
   const [email, setEmail] = useState("")
   const [password, setPassWord] = useState("")
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    console.log({ email, password });
-  } 
+  async function handleSubmit(e: React.FormEvent) {
+  e.preventDefault();
+
+  // ส่งข้อมูลไปที่ backend
+  const res = await fetch("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email,
+      password,
+      
+    }),
+  });
+
+  // อ่านคำตอบจาก backend
+  const data = await res.json();
+  console.log(res.status, data);
+}
   
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-lg space-y-4">
