@@ -40,8 +40,7 @@ class OtpServiceTest {
 
     @BeforeEach
     void setUp() {
-        // ⚠️ ลำดับพารามิเตอร์ต้องตรงกับ constructor ของ OtpService ในโปรเจกต์คุณ
-        //    ttl-minutes = 10, max-attempts = 5, resend-cooldown-seconds = 60
+      
         otpService = new OtpService(emailOtpRepository, passwordEncoder, mailService, 10, 5, 60);
         user = mock(User.class);
     }
@@ -60,7 +59,7 @@ class OtpServiceTest {
     // ---------------------------------------------------------------
 
     @Test
-    @DisplayName("รหัสถูก → ผ่าน และ OTP ถูกใช้ไปแล้ว")
+    @DisplayName("รหัสถูก = ผ่าน และ OTP ถูกใช้ไปแล้ว")
     void correctCode_marksOtpUsed() {
         // Arrange: เตรียม
         EmailOtp otp = givenLatestOtp(inMinutes(10));
@@ -73,7 +72,7 @@ class OtpServiceTest {
     }
 
     @Test
-    @DisplayName("รหัสผิด → OTP_INVALID และนับครั้งที่ผิดเพิ่ม 1")
+    @DisplayName("รหัสผิด = OTP_INVALID และนับครั้งที่ผิดเพิ่ม 1")
     void wrongCode_countsAttempt() {
         EmailOtp otp = givenLatestOtp(inMinutes(10));
 
@@ -85,7 +84,7 @@ class OtpServiceTest {
     }
 
     @Test
-    @DisplayName("หมดอายุ → OTP_EXPIRED แม้รหัสถูก")
+    @DisplayName("หมดอายุ =  OTP_EXPIRED แม้รหัสถูก")
     void expired_rejected() {
         givenLatestOtp(inMinutes(-1));   // หมดอายุไปแล้ว 1 นาที
 
@@ -96,7 +95,7 @@ class OtpServiceTest {
     }
 
     @Test
-    @DisplayName("ผิดครบ 5 ครั้ง → OTP_LOCKED แม้ครั้งนี้รหัสถูก")
+    @DisplayName("ผิดครบ 5 ครั้ง =  OTP_LOCKED แม้ครั้งนี้รหัสถูก")
     void tooManyAttempts_locked() {
         EmailOtp otp = givenLatestOtp(inMinutes(10));
         for (int i = 0; i < 5; i++) {
@@ -110,7 +109,7 @@ class OtpServiceTest {
     }
 
     @Test
-    @DisplayName("ใช้ไปแล้ว → ใช้ซ้ำไม่ได้")
+    @DisplayName("ใช้ไปแล้ว =  ใช้ซ้ำไม่ได้")
     void alreadyUsed_rejected() {
         EmailOtp otp = givenLatestOtp(inMinutes(10));
         otp.markUsed();
@@ -122,7 +121,7 @@ class OtpServiceTest {
     }
 
     @Test
-    @DisplayName("ไม่เคยขอ OTP → OTP_INVALID")
+    @DisplayName("ไม่เคยขอ OTP =  OTP_INVALID")
     void noOtp_rejected() {
         when(emailOtpRepository.findFirstByUserOrderByCreatedAtDesc(user)).thenReturn(Optional.empty());
 
