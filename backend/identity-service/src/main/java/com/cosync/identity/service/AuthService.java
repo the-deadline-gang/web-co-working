@@ -34,11 +34,11 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final MailService otpService;
+    private final OtpService otpService;
     private final JwtService jwtService;
     private final EmployeeRepository employeeRepository;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder , MailService otpService, JwtService jwtService,EmployeeRepository employeeRepository) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder , OtpService otpService, JwtService jwtService,EmployeeRepository employeeRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.otpService = otpService;

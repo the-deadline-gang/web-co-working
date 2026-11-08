@@ -17,7 +17,7 @@ import com.cosync.identity.dto.employee.UpdateEmployeeRequest;
 import com.cosync.identity.entity.Employee;
 import com.cosync.identity.entity.EmployeeStatus;
 import com.cosync.identity.entity.Role;
-import com.cosync.identity.mail.OtpMailer;
+import com.cosync.identity.mail.MailService;
 import com.cosync.identity.repository.EmployeeRepository;
 import com.cosync.identity.repository.RoleRepository;
 
@@ -29,10 +29,10 @@ public class EmployeeService {
     private static final String CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
     private static final SecureRandom RANDOM = new SecureRandom();  
     private final PasswordEncoder passwordEncoder;
-    private final OtpMailer otpMailer;
+    private final MailService otpMailer;
 
 
-    public EmployeeService(EmployeeRepository employeeRepository, RoleRepository roleRepository,PasswordEncoder passwordEncoder,OtpMailer otpMailer) {
+    public EmployeeService(EmployeeRepository employeeRepository, RoleRepository roleRepository,PasswordEncoder passwordEncoder,MailService otpMailer) {
         this.employeeRepository = employeeRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;

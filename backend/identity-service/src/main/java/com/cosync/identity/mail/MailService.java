@@ -5,15 +5,15 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Component;
 
 @Component
-public class OtpMailer {
+public class MailService {
 
     private final JavaMailSender mailSender;
 
-    public OtpMailer(JavaMailSender mailSender) {
+    public MailService(JavaMailSender mailSender) {
         this.mailSender = mailSender;
     }
 
-    public void send(String to, String otp, int ttlMinutes) {
+    public void sendOtp(String to, String otp, int ttlMinutes) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom("no-reply@cosync.local");
         message.setTo(to);

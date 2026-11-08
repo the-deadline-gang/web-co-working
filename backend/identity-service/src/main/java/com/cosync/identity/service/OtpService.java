@@ -11,30 +11,30 @@ import org.springframework.stereotype.Service;
 import com.cosync.identity.common.ApiException;
 import com.cosync.identity.entity.EmailOtp;
 import com.cosync.identity.entity.User;
-import com.cosync.identity.mail.OtpMailer;
+import com.cosync.identity.mail.MailService;
 import com.cosync.identity.repository.EmailOtpRepository;
 
 @Service
-public class MailService {
+public class OtpService {
 
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final EmailOtpRepository emailOtpRepository;
-   ;
+   
     private final PasswordEncoder passwordEncoder;
-    private final OtpMailer otpMailer;
+    private final MailService mailService;
     private final int ttlMinutes;
     private final int maxAttempts;
     private final int resendCooldownSeconds;
-    public MailService(EmailOtpRepository emailOtpRepository,
+    public OtpService(EmailOtpRepository emailOtpRepository,
                       PasswordEncoder passwordEncoder,
-                      OtpMailer otpMailer,
+                      MailService mailService,
                       @Value("${app.otp.ttl-minutes}") int ttlMinutes,
                       @Value("${app.otp.max-attempts}") int maxAttempts,
                       @Value("${app.otp.resend-cooldown-seconds}") int resendCooldownSeconds) {
         this.emailOtpRepository = emailOtpRepository;
         this.passwordEncoder = passwordEncoder;
-        this.otpMailer = otpMailer;
+        this.mailService = mailService;
         this.ttlMinutes = ttlMinutes;
         this.maxAttempts = maxAttempts;
         this.resendCooldownSeconds = resendCooldownSeconds; 
@@ -48,7 +48,7 @@ public class MailService {
         String otpHash = passwordEncoder.encode(otp);
 
         emailOtpRepository.save(new EmailOtp(user, otpHash, expiresAt));
-        otpMailer.send(user.getEmail(), otp, ttlMinutes);
+        mailService.sendOtp(user.getEmail(), otp, ttlMinutes);
 
         return expiresAt;
     }
