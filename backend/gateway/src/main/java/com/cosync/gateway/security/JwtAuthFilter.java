@@ -33,7 +33,9 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             "/api/auth/resend-otp",
             "/api/auth/login",
             "/api/auth/logout",
-            "/api/auth/staff/login");
+            "/api/auth/staff/login",
+            "/api/topups/config",
+            "/api/webhooks/payment");
 
     private final SecretKey key;
 
