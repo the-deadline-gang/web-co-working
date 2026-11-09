@@ -20,4 +20,9 @@ public interface WalletRepository extends JpaRepository<Wallet,Long>  {
     @Lock(LockModeType.PESSIMISTIC_WRITE)                  //  ล็อกแถว
     @Query("select w from Wallet w where w.id = :id")
     Optional<Wallet> findByIdForUpdate(@Param("id") Long id);
+
+    /** W-05: debit/credit รู้แค่ userId จึงล็อกด้วย userId */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select w from Wallet w where w.userId = :userId")
+    Optional<Wallet> findByUserIdForUpdate(@Param("userId") Long userId);
 }

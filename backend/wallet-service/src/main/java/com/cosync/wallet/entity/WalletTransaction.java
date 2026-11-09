@@ -87,6 +87,12 @@ public class WalletTransaction {
      * ผูก Idempotency-Key กับรายการนี้ (ENG-4) เรียกได้ครั้งเดียวก่อน save
      * รายการที่มาจาก webhook เติมเงินไม่ต้องมี key
      */
+    /**
+     * ผูก Idempotency-Key กับรายการนี้ ไว้เช็กว่าคำขอนี้เคยทำแล้วหรือยัง (ตั้งได้ครั้งเดียวก่อน save)
+     * @param idempotencyKey ป้ายที่คนเรียกส่งมาใน header เช่น booking-192-pay
+     * @param requestHash    SHA-256 ของเนื้อหาคำขอ ไว้เทียบว่า key เดิมมากับ body เดิมไหม
+     * @return รายการเดิม (ให้เขียนต่อกันได้)
+     */
     public WalletTransaction withIdempotency(String idempotencyKey, String requestHash) {
         if (this.id != null || this.idempotencyKey != null) {
             throw new IllegalStateException("ตั้ง Idempotency-Key ได้ครั้งเดียวก่อน save");

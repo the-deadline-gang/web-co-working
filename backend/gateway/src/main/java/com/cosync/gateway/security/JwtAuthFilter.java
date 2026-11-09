@@ -51,6 +51,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
                     h.remove("X-User-Id");
                     h.remove("X-User-Type");
                     h.remove("X-Permissions");
+                    h.remove("X-Internal-Token");
                 })
                 .build();
 

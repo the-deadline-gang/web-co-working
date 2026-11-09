@@ -26,15 +26,22 @@ public class GlobalExceptionHandler {
 
     
     private static final Map<String, ErrorResponse> DUPLICATE_ERRORS = Map.of(
-            "uk_app_user_email", ErrorResponse.of("EMAIL_TAKEN", "อีเมลนี้ถูกใช้สมัครแล้ว"),
-            "uk_app_user_phone", ErrorResponse.of("PHONE_TAKEN", "เบอร์โทรนี้ถูกใช้สมัครแล้ว"));
+            "uk_wallet_user", ErrorResponse.of("WALLET_EXISTS", "ผู้ใช้นี้มีกระเป๋าเงินแล้ว"),
+            "uk_txn_idempotency", ErrorResponse.of("IDEMPOTENCY_CONFLICT", "Idempotency-Key นี้ถูกใช้แล้ว"));
 
    
 
     /** ผิดกฎธุรกิจที่ Service โยนเอง เช่น อีเมลซ้ำ */
     @ExceptionHandler(ApiException.class)
     ResponseEntity<ErrorResponse> handleBusinessRule(ApiException e) {
-        return respond(e.getStatus(), ErrorResponse.of(e.getCode(), e.getMessage()));
+        return respond(e.getStatus(), new ErrorResponse(e.getCode(), e.getMessage(), e.getDetails()));
+    }
+
+    /** ไม่ได้ส่ง header ที่บังคับ เช่น Idempotency-Key หรือ X-User-Id */
+    @ExceptionHandler(org.springframework.web.bind.MissingRequestHeaderException.class)
+    ResponseEntity<ErrorResponse> handleMissingHeader(org.springframework.web.bind.MissingRequestHeaderException e) {
+        return respond(HttpStatus.BAD_REQUEST, new ErrorResponse("VALIDATION_FAILED", "ข้อมูลไม่ถูกต้อง",
+                java.util.Map.of(e.getHeaderName(), "กรุณาส่ง header " + e.getHeaderName())));
     }
 
     /** @Valid ไม่ผ่าน บอกให้ครบว่าช่องไหนผิด */
@@ -84,6 +91,8 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of("VALIDATION_FAILED", "ค่าของ " + e.getName() + " ไม่ถูกต้อง"));
     }
 
+  
+
 
     // ---------- 5xx: server ผิด ----------
 
@@ -93,6 +102,11 @@ public class GlobalExceptionHandler {
         log.error("Unexpected error", e);
         return respond(HttpStatus.INTERNAL_SERVER_ERROR,
                 ErrorResponse.of("INTERNAL_ERROR", "เกิดข้อผิดพลาด กรุณาลองใหม่"));
+    }
+
+    @ExceptionHandler(WalletUnavailableException.class)
+    ResponseEntity<ErrorResponse> handleWalletUnavailable(WalletUnavailableException e) {
+        return respond(HttpStatus.SERVICE_UNAVAILABLE, ErrorResponse.of("WALLET_UNAVAILABLE", e.getMessage()));
     }
 
     // ---------- helper ----------

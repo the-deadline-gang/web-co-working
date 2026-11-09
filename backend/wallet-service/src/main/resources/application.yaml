@@ -24,5 +24,7 @@ app:
     webhook-secret: ${PAYMENT_WEBHOOK_SECRET}
     omise:
       secret-key: ${OMISE_SECRET_KEY:}
+  internal:
+    token: ${INTERNAL_API_TOKEN}
  
    
