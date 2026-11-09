@@ -54,6 +54,10 @@ public class Topup {
     @Column(name = "gateway_ref", nullable = false, unique = true, length = 100)
     private String gatewayRef;
 
+    /** รูป QR: data URL (mock) หรือ https URL (Omise) ใส่ <img src> ได้เลย */
+    @Column(name = "qr_image", columnDefinition = "TEXT")
+    private String qrImage;
+
     @Column(name = "expires_at", nullable = false)
     private Instant expiresAt;
 
@@ -80,7 +84,7 @@ public class Topup {
     protected Topup() {
     }
 
-    public Topup(Wallet wallet, int amountThb, BigDecimal rate, String gatewayRef,
+    public Topup(Wallet wallet, int amountThb, BigDecimal rate, String gatewayRef, String qrImage,
                  Instant expiresAt, Long returnToBookingId) {
         this.wallet = wallet;
         this.userId = wallet.getUserId();
@@ -88,6 +92,7 @@ public class Topup {
         this.rate = rate;
         this.tokenAmount = Money.tokensFor(amountThb, rate);
         this.gatewayRef = gatewayRef;
+        this.qrImage = qrImage;
         this.expiresAt = expiresAt;
         this.returnToBookingId = returnToBookingId;
     }
@@ -107,13 +112,18 @@ public class Topup {
         return isPending() && now.isAfter(expiresAt);
     }
 
+    /** จ่ายเงินได้ไหม: PENDING ปกติ หรือ EXPIRED ที่ webhook มาช้า (Q1) */
+    public boolean canBePaid() {
+        return status == TopupStatus.PENDING || status == TopupStatus.EXPIRED;
+    }
+
     /**
      * เงินเข้าแล้ว: เติม Token เข้า wallet แล้วคืนแถว ledger ที่ต้อง save
-     * TODO Q1: ตอนนี้รับเฉพาะ PENDING ถ้าตกลงว่าจ่ายช้าก็เติมให้ ให้เพิ่ม EXPIRED ตรงนี้
+     * Q1: รับทั้ง PENDING และ EXPIRED (ลูกค้าจ่ายทันแต่ webhook มาถึงหลังหมดอายุ)
      */
     public WalletTransaction markPaid(Instant paidAt) {
-        if (!isPending()) {
-            throw new IllegalStateException("topup " + id + " ไม่ได้อยู่ในสถานะ PENDING แต่เป็น " + status);
+        if (!canBePaid()) {
+            throw new IllegalStateException("topup " + id + " จ่ายไม่ได้ในสถานะ " + status);
         }
         WalletTransaction txn = wallet.credit(TransactionType.TOPUP, tokenAmount, RefType.TOPUP, id,
                 "เติมเงิน " + amountThb + " บาท");
@@ -145,6 +155,7 @@ public class Topup {
     public BigDecimal getTokenAmount() { return tokenAmount; }
     public TopupStatus getStatus() { return status; }
     public String getGatewayRef() { return gatewayRef; }
+    public String getQrImage() { return qrImage; }
     public Instant getExpiresAt() { return expiresAt; }
     public Instant getPaidAt() { return paidAt; }
     public Long getReturnToBookingId() { return returnToBookingId; }

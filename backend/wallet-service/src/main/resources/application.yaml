@@ -16,3 +16,13 @@ spring:
 
 server:
   port: 8082
+
+app:
+  payment:
+    provider: ${PAYMENT_PROVIDER:mock}
+    promptpay-id: ${PROMPTPAY_ID:0812345678}
+    webhook-secret: ${PAYMENT_WEBHOOK_SECRET}
+    omise:
+      secret-key: ${OMISE_SECRET_KEY:}
+ 
+   
