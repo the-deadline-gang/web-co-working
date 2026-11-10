@@ -1,0 +1,21 @@
+meta {
+  name: 02 Counter cannot list roles
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{identityUrl}}/admin/roles
+  body: none
+  auth: none
+}
+
+headers {
+  X-User-Id: 2
+  X-User-Type: STAFF
+  X-Permissions: loan.record,checkout.override
+}
+
+assert {
+  res.status: eq 403
+}

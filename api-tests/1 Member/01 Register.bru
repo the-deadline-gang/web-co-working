@@ -1,0 +1,39 @@
+meta {
+  name: 01 Register
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/auth/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "firstName": "ทดสอบ",
+    "lastName": "Bruno",
+    "email": "{{newMemberEmail}}",
+    "phone": "{{newMemberPhone}}",
+    "password": "{{memberPassword}}",
+    "acceptTerms": true
+  }
+}
+
+script:pre-request {
+  // สุ่มอีเมลกับเบอร์ใหม่ทุกครั้ง จะได้ไม่ชน 409
+  const n = Date.now().toString().slice(-9);
+  bru.setVar("newMemberEmail", `bruno${n}@example.com`);
+  bru.setVar("newMemberPhone", `0${n}`);
+}
+
+assert {
+  res.status: eq 201
+  res.body.userId: isDefined
+}
+
+docs {
+  สมัครสมาชิกด้วยอีเมลสุ่ม แล้วไปดู OTP ใน MailHog (http://localhost:8025)
+  เอา OTP ไปใส่ในตัวแปร otp ของ request "02 Verify OTP"
+}

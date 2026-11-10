@@ -17,6 +17,7 @@ import com.cosync.wallet.repository.TopupRepository;
 import com.cosync.wallet.repository.WalletRepository;
 import com.cosync.wallet.repository.WalletTransactionRepository;
 
+// review 10/11/2026 by peak
 /**
  * รับผลการจ่ายเงินจาก Gateway แล้วเติม Token (F3 ขั้น 4)
  * กรณีผิดปกติส่วนใหญ่แค่ log แล้วจบ ไม่ throw เพราะถ้าตอบ error Gateway จะยิงซ้ำมาเรื่อยๆ
@@ -41,6 +42,11 @@ public class PaymentWebhookService {
         this.walletTransactionRepository = walletTransactionRepository;
     }
 
+    /**
+     * เอาไว้จัดการ webhook และก็จัดการเงื่อนไขต่างๆ
+     * @param event  รับมาเป็นแบบ PaymentWebhook เอาไว้เช็ค 
+     * @param rawBody ข้อมูลดิบๆทั้งก้อน
+     */
     @Transactional
     public void handle(PaymentWebhook event, String rawBody) {
         // 1. กันซ้ำ : event นี้เคยมาแล้ว = จบ

@@ -1,0 +1,16 @@
+meta {
+  name: 05 Transactions size over 100 is clamped
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/me/wallet/transactions?size=5000
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.size: eq 100
+}

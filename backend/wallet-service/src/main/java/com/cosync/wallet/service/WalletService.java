@@ -42,6 +42,11 @@ public class WalletService {
      }
 
 
+    /**
+     * เป็นการหา wallet ของ user คนนั้น
+     * @param userId id ของ user 
+     * @return ตอนกลับแบบ WalletResponse
+     */
     @Transactional(readOnly = true)
     public WalletResponse getByUserId(Long userId) {
         Wallet wallet = walletRepository.findByUserId(userId)
@@ -49,6 +54,14 @@ public class WalletService {
         return WalletResponse.from(wallet);
     }
 
+    /**
+     * เป็นการค้นหาประวัติการเงินของ user คนนั้นโดยที่เวลาคืนจะคืนออกไปเป็นหน้าๆ
+     * @param userId id ของ user คนนั้น
+     * @param type ประเภทของประวัติการเติม เช่น TOPUP, BOOKING, REFUND, LOAN_FEE, DEPOSIT_HOLD, DEPOSIT_REFUND
+     * @param page จำนวนหน้า
+     * @param size ขนาดของแต่ะหน้า
+     * @return ส่งกลับไปเป็นแบบ PageResponse 
+     */
     @Transactional(readOnly = true)
     public PageResponse<TransactionResponse> getTransactions(Long userId, TransactionType type, int page, int size) {
         Wallet wallet = findWallet(userId);
@@ -70,13 +83,22 @@ public class WalletService {
         return walletRepository.findByUserId(userId).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "WALLET_NOT_FOUND", "ไม่พบกระเป๋าเงิน"));
     }
 
+    /**
+     * ดึงการตั้งค่าของ wallet 
+     * @return  ส่งกลับแบบ WalletSettingsResponse
+     */
    @Transactional(readOnly = true)
     public WalletSettingsResponse getSettings() {
         WalletSetting setting = walletSettingRepository.findById(WalletSetting.SINGLETON_ID).orElseThrow(); 
         return WalletSettingsResponse.from(setting);                                                        
     }
 
-
+    /**
+     * เอาไว้  update การตั้งต่าต่างๆของ wallet
+     * @param staffId id ของ staff ที่จะแก้ข้อมูล
+     * @param req   reqest ที่ส่งมาแบบ  WalletSettingRequest
+     * @return ตอนกลับไปแบบ WalletSettingsResponse โดยที่จะบอกว่า setting ใหม่เป็นยังไง
+     */
     @Transactional
     public WalletSettingsResponse updateSettings(Long staffId, WalletSettingRequest req) {
      

@@ -1,0 +1,21 @@
+meta {
+  name: 05 Get me
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/me
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.displayId: startsWith U-
+}
+
+docs {
+  ใช้ cookie จาก "04 Login" (Bruno ส่งให้เอง)
+  ถ้าได้ 403 แปลว่าล่าสุดไป login เป็นพนักงานมา ให้กด 04 Login ใหม่
+}

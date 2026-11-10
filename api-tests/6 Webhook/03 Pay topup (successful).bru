@@ -1,0 +1,49 @@
+meta {
+  name: 03 Pay topup (successful)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/webhooks/payment
+  body: text
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Signature: {{webhookSignature}}
+}
+
+body:text {
+  {{webhookBody}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+script:pre-request {
+  const CryptoJS = require("crypto-js");
+  function signAndSet(body, secret) {
+    bru.setVar("webhookBody", body);
+    bru.setVar("webhookSignature", CryptoJS.HmacSHA256(body, secret).toString());
+  }
+
+  const eventId = `evt_bruno_${Date.now()}`;
+  bru.setVar("eventId", eventId);
+  const body = JSON.stringify({
+    eventId,
+    gatewayRef: bru.getEnvVar("gatewayRef"),
+    status: "successful",
+    amountThb: 500,
+    paidAt: new Date().toISOString()
+  });
+  signAndSet(body, bru.getProcessEnv("PAYMENT_WEBHOOK_SECRET"));
+}
+
+docs {
+  W-08 จำลอง Payment Gateway แจ้งว่าจ่ายแล้ว
+  ต้องตั้งค่า gatewayRef ใน environment ให้เป็นของ topup 500 บาทที่ยัง PENDING ก่อน (ดู docs ของ 5 Topup / 03)
+  ลายเซ็นคำนวณด้วย PAYMENT_WEBHOOK_SECRET จาก api-tests/.env
+}

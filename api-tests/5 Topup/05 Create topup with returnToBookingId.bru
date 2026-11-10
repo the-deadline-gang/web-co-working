@@ -1,0 +1,24 @@
+meta {
+  name: 05 Create topup with returnToBookingId
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/topups
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "amountThb": 1000,
+    "returnToBookingId": 192
+  }
+}
+
+assert {
+  res.status: eq 201
+  res.body.returnToBookingId: eq 192
+  res.body.tokenAmount: eq 1000
+}

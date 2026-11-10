@@ -1,0 +1,35 @@
+meta {
+  name: 12 Debit with credit type
+  type: http
+  seq: 12
+}
+
+post {
+  url: {{walletUrl}}/internal/wallets/{{testUserId}}/debit
+  body: json
+  auth: none
+}
+
+headers {
+  X-Internal-Token: {{process.env.INTERNAL_API_TOKEN}}
+  Content-Type: application/json
+  Idempotency-Key: {{xKey}}
+}
+
+body:json {
+  {
+    "amount": 10,
+    "type": "REFUND",
+    "refType": "BOOKING",
+    "refId": 1
+  }
+}
+
+assert {
+  res.status: eq 400
+  res.body.code: eq VALIDATION_FAILED
+}
+
+script:pre-request {
+  bru.setVar("xKey", `x-${Date.now()}`);
+}

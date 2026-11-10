@@ -1,0 +1,39 @@
+meta {
+  name: 04 Create employee
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/admin/employees
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "firstName": "พนักงาน",
+    "lastName": "Bruno",
+    "email": "{{newEmployeeEmail}}",
+    "roleId": 5
+  }
+}
+
+script:pre-request {
+  bru.setVar("newEmployeeEmail", `counter${Date.now()}@cosync.local`);
+}
+
+script:post-response {
+  // เก็บไว้ให้ request ถัดไปใช้
+  bru.setVar("employeeId", res.body.employeeId);
+}
+
+assert {
+  res.status: eq 201
+  res.body.roleName: eq Counter
+  res.body.status: eq ACTIVE
+}
+
+docs {
+  roleId 5 = Counter รหัสชั่วคราวส่งไปที่ MailHog
+}

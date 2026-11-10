@@ -52,15 +52,32 @@ public class WalletSetting {
     // ---------- พฤติกรรม ----------
 
     /** BR-01 */
+    /**
+     * เอาเไว้เช็คว่ายอดเงินมันมากว่าค่าทีี่ตั้งหรือน้อยกว่าที่ตั้งค่าไว้ไหม
+     * @param amountThb ยอดเงิน
+     * @return ส่งกลับว่ายอดเงินตรงกับเงื่อนไขหริอไม่
+     */
     public boolean allowsAmount(int amountThb) {
         return amountThb >= minThb && amountThb <= maxThb;
     }
 
+    /**
+     * คัวเลือกยอดเงินแบบเร็วๆ
+     * @return ส่งกลับไปเป็น list ของ Interger
+     */
     public List<Integer> quickAmounts() {
         return QUICK_AMOUNTS.stream().filter(this::allowsAmount).toList();
     }
 
     /** service ต้องเช็ก min <= max และตอบ 400 เองก่อน ตรงนี้เป็นด่านกันบั๊ก (DB ก็มี CHECK) */
+    /**
+     * การ update ของ wallet 
+     * @param rate rate การแลกเปลี่ยน
+     * @param minThb จำนวนเงินขั้นต่ำ
+     * @param maxThb จำนวนเงินสูงสุด
+     * @param qrExpireMinutes qr จะหมดภานในกี่นาที
+     * @param updatedBy update โดย staff คนไหน
+     */
     public void update(BigDecimal rate, int minThb, int maxThb, int qrExpireMinutes, String updatedBy) {
         if (minThb > maxThb) {
             throw new IllegalArgumentException("minThb ต้องไม่มากกว่า maxThb");

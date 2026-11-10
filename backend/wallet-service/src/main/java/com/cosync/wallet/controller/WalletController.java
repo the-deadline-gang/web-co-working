@@ -11,19 +11,18 @@ import com.cosync.wallet.dto.transaction.TransactionResponse;
 import com.cosync.wallet.dto.wallet.WalletResponse;
 import com.cosync.wallet.entity.TransactionType;
 import com.cosync.wallet.security.MemberOnly;
-import com.cosync.wallet.service.TopupService;
 import com.cosync.wallet.service.WalletService;
 
+// review 10/11/2026 by peak
 @RestController
 @RequestMapping("/me/wallet")
 public class WalletController {
 
     private final WalletService walletService;
-    private final TopupService topupService;
+ 
 
-    public WalletController(WalletService walletService,TopupService topupService) {
+    public WalletController(WalletService walletService) {
         this.walletService = walletService;
-        this.topupService = topupService;
     }
 
     @MemberOnly

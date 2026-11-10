@@ -19,6 +19,8 @@ import com.cosync.wallet.service.PaymentWebhookService;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
+
+// review 10/11/2026 by peak
 @RestController
 @RequestMapping("/webhooks")
 public class WebhookController {
@@ -47,7 +49,7 @@ public class WebhookController {
             @RequestBody String rawBody) {
 
         signatureVerifier.verify(rawBody, signature);
-        
+
         PaymentWebhook event = parse(rawBody);
 
         // 3. ทำงานจริง
@@ -62,6 +64,11 @@ public class WebhookController {
         return ResponseEntity.ok().build();
     }
 
+    /**
+     * แปลงข้อมูลดิบที่มารับมาแบบ String แปลงกลับไปเป็น obj
+     * @param rawBody ข้อมูลดิบ
+     * @return ส่งกลับไปเป็น PaymentWebhook
+     */  
     private PaymentWebhook parse(String rawBody) {
         try {
             PaymentWebhook event = jsonMapper.readValue(rawBody, PaymentWebhook.class);

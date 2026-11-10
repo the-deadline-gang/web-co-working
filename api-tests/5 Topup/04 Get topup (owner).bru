@@ -1,0 +1,18 @@
+meta {
+  name: 04 Get topup (owner)
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/topups/{{topupId}}
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.topupId: eq {{topupId}}
+  res.body.status: eq PENDING
+  res.body.qrImage: isString
+}

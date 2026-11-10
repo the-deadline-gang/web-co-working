@@ -25,6 +25,7 @@ public class OmisePaymentGateway implements PaymentGateway {
                 .build();
     }
 
+    
     @Override
     public CreatedPayment createPayment(int amountThb) {
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();

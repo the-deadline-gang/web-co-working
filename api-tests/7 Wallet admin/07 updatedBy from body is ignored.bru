@@ -1,0 +1,30 @@
+meta {
+  name: 07 updatedBy from body is ignored
+  type: http
+  seq: 7
+}
+
+put {
+  url: {{baseUrl}}/admin/wallet-settings
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "rate": {{origRate}},
+    "minThb": {{origMin}},
+    "maxThb": {{origMax}},
+    "qrExpireMinutes": {{origQr}},
+    "updatedBy": "STF-999"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.updatedBy: neq STF-999
+}
+
+docs {
+  ตั้งค่ากลับเป็นค่าเดิมด้วย และ updatedBy ต้องมาจากคนที่ login ไม่ใช่จาก body
+}

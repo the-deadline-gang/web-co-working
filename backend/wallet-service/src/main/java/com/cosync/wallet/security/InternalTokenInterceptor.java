@@ -22,6 +22,7 @@ public class InternalTokenInterceptor implements HandlerInterceptor {
         this.token = token.getBytes(StandardCharsets.UTF_8);
     }
 
+    
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         String sent = request.getHeader("X-Internal-Token");

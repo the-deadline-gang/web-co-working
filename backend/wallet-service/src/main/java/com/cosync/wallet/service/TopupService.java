@@ -20,6 +20,8 @@ import com.cosync.wallet.repository.TopupRepository;
 import com.cosync.wallet.repository.WalletRepository;
 import com.cosync.wallet.repository.WalletSettingRepository;
 
+
+// review 10/11/2026 by peak
 @Service 
 public class TopupService {
     
@@ -35,11 +37,21 @@ public class TopupService {
         this.paymentGateway = paymentGateway;
     }
 
+    /**
+     * เป็นการดึงการตั้งค่าของ Topup
+     * @return ส่งกลับแบบ TopupConfigResponse
+     */
     @Transactional(readOnly = true)
     public TopupConfigResponse getConfig() {
         return TopupConfigResponse.from(walletSettingRepository.findById(1).orElseThrow());
     }
 
+    /**
+     * การสร้างการจ่ายเงินโดยที่จะมีการเช็คเงื่อนไขต่างๆ
+     * @param userId id ของ user 
+     * @param req  คำข้อในรูปแบบ CreateTopupRequest
+     * @return ส่งกลับแบบ TopupResponse
+     */
     @Transactional
     public TopupResponse create(Long userId, CreateTopupRequest req){
         WalletSetting setting = walletSettingRepository.findById(1).orElseThrow();

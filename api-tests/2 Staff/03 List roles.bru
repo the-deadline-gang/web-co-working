@@ -1,0 +1,20 @@
+meta {
+  name: 03 List roles
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/admin/roles
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.length: gte 6
+}
+
+docs {
+  ต้อง login Admin (01) ก่อน เพราะต้องมีสิทธิ์ role.manage
+}

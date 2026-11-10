@@ -1,0 +1,39 @@
+meta {
+  name: 11 Unknown gatewayRef
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/webhooks/payment
+  body: text
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Signature: {{webhookSignature}}
+}
+
+body:text {
+  {{webhookBody}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+script:pre-request {
+  const CryptoJS = require("crypto-js");
+  function signAndSet(body, secret) {
+    bru.setVar("webhookBody", body);
+    bru.setVar("webhookSignature", CryptoJS.HmacSHA256(body, secret).toString());
+  }
+
+  const body = JSON.stringify({ eventId: `evt_unknown_${Date.now()}`, gatewayRef: "mock_does_not_exist", status: "successful", amountThb: 500 });
+  signAndSet(body, bru.getProcessEnv("PAYMENT_WEBHOOK_SECRET"));
+}
+
+docs {
+  ไม่รู้จัก gatewayRef ตอบ 200 (Gateway จะได้ไม่ยิงซ้ำ) แล้ว log WARN ไว้
+}

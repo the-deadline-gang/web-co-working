@@ -1,0 +1,25 @@
+meta {
+  name: 03 Resend OTP (cooldown)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/auth/resend-otp
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "nobody-{{$timestamp}}@example.com"
+  }
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  อีเมลที่ไม่มีในระบบต้องได้ 204 เหมือนกัน (ไม่บอกว่าอีเมลนี้มีหรือไม่มี)
+}

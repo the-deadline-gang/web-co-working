@@ -1,0 +1,25 @@
+meta {
+  name: 06 Create employee bad role
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/admin/employees
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "firstName": "ทดสอบ",
+    "lastName": "Role",
+    "email": "badrole{{$timestamp}}@cosync.local",
+    "roleId": 99
+  }
+}
+
+assert {
+  res.status: eq 422
+  res.body.code: eq ROLE_NOT_FOUND
+}

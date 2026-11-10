@@ -14,7 +14,7 @@ import com.google.zxing.WriterException;
 import com.google.zxing.client.j2se.MatrixToImageWriter;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
-
+// review 10/11/2026 by peak   เดี๋ยวจะเอาออกถ้าเราจะใช้ gateway จากข้่างนอกสร้าง qr-code
 @Service
 public class QrCodeService {
 
@@ -25,6 +25,11 @@ public class QrCodeService {
     }
 
     /** คืนรูป QR เป็น data URL ใส่ <img src> ได้เลย */
+    /**
+     * เอาไว้ gen Qr-code  
+     * @param amountThb จำนวนเงิน
+     * @return 
+     */
     public String generate(int amountThb) {
         String payload = PromptPayPayload.build(promptPayPhone, BigDecimal.valueOf(amountThb));
         try {

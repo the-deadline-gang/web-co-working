@@ -1,0 +1,44 @@
+meta {
+  name: 06 New event same topup
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/webhooks/payment
+  body: text
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Signature: {{webhookSignature}}
+}
+
+body:text {
+  {{webhookBody}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+script:pre-request {
+  const CryptoJS = require("crypto-js");
+  function signAndSet(body, secret) {
+    bru.setVar("webhookBody", body);
+    bru.setVar("webhookSignature", CryptoJS.HmacSHA256(body, secret).toString());
+  }
+
+  const body = JSON.stringify({
+    eventId: `evt_bruno_other_${Date.now()}`,
+    gatewayRef: bru.getEnvVar("gatewayRef"),
+    status: "successful",
+    amountThb: 500
+  });
+  signAndSet(body, bru.getProcessEnv("PAYMENT_WEBHOOK_SECRET"));
+}
+
+docs {
+  event ใหม่แต่ topup นี้ PAID แล้ว canBePaid() เป็น false ต้องไม่เติมซ้ำ
+}

@@ -1,0 +1,35 @@
+meta {
+  name: 10 Signed but invalid body
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/webhooks/payment
+  body: text
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Signature: {{webhookSignature}}
+}
+
+body:text {
+  {{webhookBody}}
+}
+
+assert {
+  res.status: eq 400
+  res.body.code: eq VALIDATION_FAILED
+}
+
+script:pre-request {
+  const CryptoJS = require("crypto-js");
+  function signAndSet(body, secret) {
+    bru.setVar("webhookBody", body);
+    bru.setVar("webhookSignature", CryptoJS.HmacSHA256(body, secret).toString());
+  }
+
+  signAndSet(JSON.stringify({ eventId: "evt_bad", status: "successful" }), bru.getProcessEnv("PAYMENT_WEBHOOK_SECRET"));
+}

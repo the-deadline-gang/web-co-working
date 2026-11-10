@@ -14,7 +14,7 @@ import com.cosync.wallet.dto.wallet.WalletResponse;
 import com.cosync.wallet.service.WalletService;
 
 import jakarta.validation.Valid;
-
+// review 10/11/2026 by peak
 @RestController
 @RequestMapping("/internal/wallets")
 public class InternalWalletController {
