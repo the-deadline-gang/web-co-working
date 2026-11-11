@@ -1,0 +1,16 @@
+meta {
+  name: Test
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/admin/employees
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  forwardAuthorizationHeader: false
+}
