@@ -1,3 +1,11 @@
-// รูปแบบข้อมูลที่ส่ง/รับกับ backend ดูจาก docs/openapi/identity.yaml (ส่วน components/schemas)
-// TODO: ApiErrorBody, RegisterRequest, RegisterResponse, VerifyOtpRequest
-export {};
+// รูปแบบข้อมูลที่รับจาก backend (ดูจาก docs/openapi/identity.yaml)
+
+/** ข้อมูลผู้ใช้ที่ login อยู่ → GET /me */
+export type Me = {
+  userId: number;
+  displayId: string; // "U-000006"
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+};
