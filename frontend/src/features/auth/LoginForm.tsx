@@ -1,9 +1,11 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassWord] = useState("");
   const [error, setEror] = useState("");
+  const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -24,6 +26,7 @@ export function LoginForm() {
 
     if (res.status === 200) {
       setEror("");
+      router.push("/home")
     } else {
       setEror(data.message);
     }
