@@ -18,7 +18,6 @@ const MENU = [
 export function Sidebar() {
   const pathname = usePathname(); // URL ปัจจุบัน เช่น "/home" → ใช้เช็คว่าเมนูไหนกำลังเปิดอยู่
 
-  // TODO: ข้อมูลจริงมาจาก API (/me, wallet) · ตอนนี้ใส่ค่าตัวอย่างไปก่อน
   const user = {
     firstName: "กมลชนก",
     lastName: "ศรีสุข",
