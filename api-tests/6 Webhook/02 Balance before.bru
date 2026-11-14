@@ -1,0 +1,19 @@
+meta {
+  name: 02 Balance before
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/me/wallet
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+}
+
+script:post-response {
+  bru.setVar("balanceBefore", res.body.balance);
+}

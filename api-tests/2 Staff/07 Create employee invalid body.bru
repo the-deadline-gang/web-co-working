@@ -1,0 +1,30 @@
+meta {
+  name: 07 Create employee invalid body
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/admin/employees
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "firstName": "",
+    "lastName": "Bruno",
+    "email": "not-an-email",
+    "phone": "12345"
+  }
+}
+
+assert {
+  res.status: eq 400
+  res.body.code: eq VALIDATION_FAILED
+}
+
+docs {
+  ชื่อว่าง อีเมลผิดรูปแบบ เบอร์ผิด และไม่มี roleId
+  ดู res.body.details ว่าบอกครบทุกช่อง
+}

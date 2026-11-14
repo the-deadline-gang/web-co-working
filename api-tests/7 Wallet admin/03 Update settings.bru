@@ -1,0 +1,27 @@
+meta {
+  name: 03 Update settings
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{baseUrl}}/admin/wallet-settings
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "rate": 1,
+    "minThb": 50,
+    "maxThb": 20000,
+    "qrExpireMinutes": 10
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.minThb: eq 50
+  res.body.maxThb: eq 20000
+  res.body.updatedBy: startsWith STF-
+}

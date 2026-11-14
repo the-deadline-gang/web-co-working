@@ -1,0 +1,31 @@
+meta {
+  name: 01 Login member
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/auth/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{memberEmail}}",
+    "password": "{{memberPassword}}"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.userId: isDefined
+}
+
+script:post-response {
+  bru.setVar("memberUserId", res.body.userId);
+}
+
+docs {
+  login เป็นสมาชิก (verify3) Bruno เก็บ cookie ไว้ให้ request ถัดไปเอง
+}

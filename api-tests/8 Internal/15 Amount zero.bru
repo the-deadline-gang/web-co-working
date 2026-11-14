@@ -1,0 +1,35 @@
+meta {
+  name: 15 Amount zero
+  type: http
+  seq: 15
+}
+
+post {
+  url: {{walletUrl}}/internal/wallets/{{testUserId}}/debit
+  body: json
+  auth: none
+}
+
+headers {
+  X-Internal-Token: {{process.env.INTERNAL_API_TOKEN}}
+  Content-Type: application/json
+  Idempotency-Key: {{aKey}}
+}
+
+body:json {
+  {
+    "amount": 0,
+    "type": "BOOKING",
+    "refType": "BOOKING",
+    "refId": 1
+  }
+}
+
+assert {
+  res.status: eq 400
+  res.body.details.amount: isDefined
+}
+
+script:pre-request {
+  bru.setVar("aKey", `a-${Date.now()}`);
+}

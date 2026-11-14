@@ -1,0 +1,20 @@
+meta {
+  name: 09 Admin has no setting.manage
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/admin/wallet-settings
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 403
+  res.body.code: eq FORBIDDEN
+}
+
+docs {
+  Admin มีแค่ role.manage กับ employee.manage ตรวจสิทธิ์ตาม permission ไม่ใช่ชื่อ role
+}

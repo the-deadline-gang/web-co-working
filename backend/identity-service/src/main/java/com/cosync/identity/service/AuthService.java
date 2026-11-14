@@ -10,6 +10,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.cosync.identity.client.WalletClient;
 import com.cosync.identity.common.ApiException;
 import com.cosync.identity.dto.login.LoginRequest;
 import com.cosync.identity.dto.login.LoginResult;
@@ -37,13 +38,15 @@ public class AuthService {
     private final OtpService otpService;
     private final JwtService jwtService;
     private final EmployeeRepository employeeRepository;
+    private final WalletClient walletClient;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder , OtpService otpService, JwtService jwtService,EmployeeRepository employeeRepository) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder , OtpService otpService, JwtService jwtService,EmployeeRepository employeeRepository,WalletClient walletClient) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.otpService = otpService;
         this.jwtService = jwtService;
         this.employeeRepository = employeeRepository;
+        this.walletClient = walletClient;
     }
 
     @Transactional
@@ -84,6 +87,7 @@ public class AuthService {
                 .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "OTP_INVALID", "รหัสไม่ถูกต้อง"));
         otpService.verify(user, request.otp());
         user.markEmailVerified();
+        walletClient.createWallet(user.getId());
     }
 
     @Transactional

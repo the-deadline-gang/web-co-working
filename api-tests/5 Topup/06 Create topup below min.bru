@@ -1,0 +1,22 @@
+meta {
+  name: 06 Create topup below min
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/topups
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "amountThb": 1
+  }
+}
+
+assert {
+  res.status: eq 422
+  res.body.code: eq TOPUP_AMOUNT_OUT_OF_RANGE
+}

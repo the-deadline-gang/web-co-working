@@ -1,0 +1,67 @@
+meta {
+  name: 18 Concurrent debits
+  type: http
+  seq: 18
+}
+
+post {
+  url: {{walletUrl}}/internal/wallets/{{testUserId}}/credit
+  body: json
+  auth: none
+}
+
+headers {
+  X-Internal-Token: {{process.env.INTERNAL_API_TOKEN}}
+  Content-Type: application/json
+  Idempotency-Key: {{raceSeedKey}}
+}
+
+body:json {
+  {
+    "amount": 120,
+    "type": "REFUND",
+    "refType": "BOOKING",
+    "refId": 3
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.balanceAfter: eq 300
+}
+
+script:pre-request {
+  bru.setVar("raceSeedKey", `race-seed-${Date.now()}`);
+}
+
+script:post-response {
+  // ยอดตอนนี้ 300 ยิงตัด 240 พร้อมกัน 5 ครั้ง ต้องผ่านแค่ 1 ครั้ง
+  const axios = require("axios");
+  const url = `${bru.getEnvVar("walletUrl")}/internal/wallets/${bru.getVar("testUserId")}/debit`;
+  const token = bru.getProcessEnv("INTERNAL_API_TOKEN");
+  const stamp = Date.now();
+  const calls = [1, 2, 3, 4, 5].map(i =>
+    axios.post(url, { amount: 240, type: "BOOKING", refType: "BOOKING", refId: 100 + i }, {
+      headers: { "X-Internal-Token": token, "Idempotency-Key": `race-${i}-${stamp}` },
+      validateStatus: () => true
+    })
+  );
+  const results = await Promise.all(calls);
+  bru.setVar("raceOk", results.filter(r => r.status === 200).length);
+  bru.setVar("race422", results.filter(r => r.status === 422).length);
+}
+
+tests {
+  test("ผ่านแค่ 1 ครั้ง", function () {
+    expect(bru.getVar("raceOk")).to.equal(1);
+  });
+  test("อีก 4 ครั้งได้ 422", function () {
+    expect(bru.getVar("race422")).to.equal(4);
+  });
+}
+
+docs {
+  W-05 เกณฑ์ "เสร็จเมื่อ": ตัดพร้อมกันแล้วยอดไม่ติดลบ
+  request นี้คืนเงิน 120 ให้ยอดกลับเป็น 300 แล้ว script หลัง response ยิงตัด 240 พร้อมกัน 5 ครั้ง
+  ดูผลยอดสุดท้ายได้ที่ 19
+}

@@ -1,0 +1,17 @@
+meta {
+  name: 04 Member config follows
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/topups/config
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.minThb: eq 50
+  res.body.qrExpireMinutes: eq 10
+}

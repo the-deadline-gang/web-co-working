@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: CO-SYNC Identity API
-  version: 0.2.0
+  version: 0.3.0
   description: |
     สัญญา API ของ identity-service
     Frontend เรียกผ่าน Gateway ที่ /api/... เสมอ
@@ -67,6 +67,13 @@ paths:
             OTP ผิด หมดอายุ หรือผิดเกิน 5 ครั้ง (code = OTP_INVALID, OTP_EXPIRED, OTP_LOCKED)
             ไม่พบอีเมลก็ได้ OTP_INVALID เหมือนกัน หรือข้อมูลผิดรูปแบบ (code = VALIDATION_FAILED)
             ถ้าได้ OTP_EXPIRED หรือ OTP_LOCKED ให้เรียก /auth/resend-otp
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '503':
+          description: |
+            สร้าง Wallet ไม่สำเร็จ (code = WALLET_UNAVAILABLE) การยืนยันถูกยกเลิกทั้งหมด
+            อีเมลยังไม่ถูกยืนยัน OTP ยังใช้ได้ ให้ผู้ใช้กดยืนยันด้วยรหัสเดิมอีกครั้ง
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }

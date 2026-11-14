@@ -1,0 +1,45 @@
+meta {
+  name: 07 Debit 240
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{walletUrl}}/internal/wallets/{{testUserId}}/debit
+  body: json
+  auth: none
+}
+
+headers {
+  X-Internal-Token: {{process.env.INTERNAL_API_TOKEN}}
+  Content-Type: application/json
+  Idempotency-Key: {{payKey}}
+}
+
+body:json {
+  {
+    "amount": 240,
+    "type": "BOOKING",
+    "refType": "BOOKING",
+    "refId": 192,
+    "note": "B-ROOM-02 14:00-16:00"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.amount: eq -240
+  res.body.balanceAfter: eq 60
+}
+
+script:pre-request {
+  bru.setVar("payKey", `booking-192-pay-${Date.now()}`);
+}
+
+script:post-response {
+  bru.setVar("payTxnId", res.body.txnId);
+}
+
+docs {
+  W-05 ตัดเงิน
+}

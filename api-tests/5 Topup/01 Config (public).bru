@@ -1,0 +1,31 @@
+meta {
+  name: 01 Config (public)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/topups/config
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: access_token=
+}
+
+assert {
+  res.status: eq 200
+  res.body.minThb: isNumber
+  res.body.maxThb: isNumber
+  res.body.quickAmounts: isArray
+  res.body.qrExpireMinutes: isNumber
+}
+
+script:post-response {
+  bru.setVar("minThb", res.body.minThb); bru.setVar("maxThb", res.body.maxThb);
+}
+
+docs {
+  W-06 ไม่ต้อง login (อยู่ใน PUBLIC_PATHS)
+}

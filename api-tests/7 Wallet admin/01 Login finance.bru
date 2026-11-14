@@ -1,0 +1,27 @@
+meta {
+  name: 01 Login finance
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/auth/staff/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{financeEmail}}",
+    "password": "{{financePassword}}"
+  }
+}
+
+assert {
+  res.status: eq 200
+}
+
+docs {
+  ต้องมีพนักงาน role Finance (มีสิทธิ์ setting.manage) ก่อน
+  สร้างด้วย 2 Staff / 04 Create employee แล้วเอารหัสชั่วคราวจาก MailHog มาใส่ financePassword ใน environment
+}

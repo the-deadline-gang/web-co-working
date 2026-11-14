@@ -1,0 +1,16 @@
+meta {
+  name: 09 Get topup not found
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/topups/999999999
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 404
+  res.body.code: eq TOPUP_NOT_FOUND
+}

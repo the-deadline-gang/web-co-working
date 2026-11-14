@@ -1,0 +1,31 @@
+meta {
+  name: 02 Verify OTP
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/auth/verify-otp
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{newMemberEmail}}",
+    "otp": "{{otp}}"
+  }
+}
+
+vars:pre-request {
+  otp: 000000
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  แก้ค่า otp ในแท็บ Vars ให้ตรงกับอีเมลใน MailHog ก่อนกดยิง
+  ถ้ารันทั้ง folder ด้วย Runner ข้อนี้จะไม่ผ่าน (เพราะ OTP ต้องกรอกเอง) ถือว่าปกติ
+}

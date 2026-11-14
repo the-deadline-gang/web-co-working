@@ -1,0 +1,25 @@
+meta {
+  name: 02 Get settings
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/admin/wallet-settings
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.rate: isNumber
+  res.body.minThb: isNumber
+  res.body.updatedBy: isString
+}
+
+script:post-response {
+  bru.setVar("origRate", res.body.rate);
+  bru.setVar("origMin", res.body.minThb);
+  bru.setVar("origMax", res.body.maxThb);
+  bru.setVar("origQr", res.body.qrExpireMinutes);
+}

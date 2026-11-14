@@ -1,0 +1,22 @@
+meta {
+  name: 08 Login admin
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/auth/staff/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{adminEmail}}",
+    "password": "{{adminPassword}}"
+  }
+}
+
+assert {
+  res.status: eq 200
+}

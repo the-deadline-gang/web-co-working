@@ -1,0 +1,29 @@
+meta {
+  name: 05 Create employee duplicate email
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/admin/employees
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "firstName": "ซ้ำ",
+    "lastName": "Bruno",
+    "email": "{{newEmployeeEmail}}",
+    "roleId": 5
+  }
+}
+
+assert {
+  res.status: eq 409
+  res.body.code: eq EMAIL_TAKEN
+}
+
+docs {
+  ใช้อีเมลเดียวกับ 04 จึงต้องรัน 04 ก่อน
+}

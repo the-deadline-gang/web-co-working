@@ -1,0 +1,31 @@
+meta {
+  name: 02 Create wallet again
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{walletUrl}}/internal/wallets
+  body: json
+  auth: none
+}
+
+headers {
+  X-Internal-Token: {{process.env.INTERNAL_API_TOKEN}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "userId": {{testUserId}}
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.walletId: eq {{testWalletId}}
+}
+
+docs {
+  เรียกซ้ำต้องได้ใบเดิม
+}

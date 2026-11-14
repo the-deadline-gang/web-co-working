@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: CO-SYNC Wallet API
-  version: 0.1.0
+  version: 0.2.0
   description: |
     สัญญา API ของ wallet-service (Sprint 2) อ้างอิงกฎ BR-01 ถึง BR-07 และ flow F3 ในเอกสาร System Flow v2
 
@@ -10,6 +10,8 @@ info:
     - `x-permission` = permission code ที่พนักงานต้องมี ถ้าไม่ระบุแปลว่าเป็น endpoint ของสมาชิก
     - path ที่ขึ้นต้นด้วย `/internal` ให้ service อื่นเรียกภายใน docker network เท่านั้น Gateway ไม่เปิดให้ภายนอก
     - endpoint ภายในที่เปลี่ยนยอดเงินต้องส่ง header `Idempotency-Key` เสมอ
+    - endpoint `/internal/**` ทุกตัวต้องส่ง header `X-Internal-Token` (= INTERNAL_API_TOKEN ใน .env) ไม่ตรงได้ 401
+      Gateway ไม่ route `/internal/**` และลบ header นี้ทิ้งจาก request ภายนอก
 servers:
   - url: http://localhost:8080/api
     description: ผ่าน Gateway (frontend)
@@ -35,6 +37,12 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Wallet' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: สมาชิกยังไม่มี Wallet (code = WALLET_NOT_FOUND)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
 
   /me/wallet/transactions:
     get:
@@ -53,7 +61,18 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/TransactionPage' }
+        '400':
+          description: ค่า type ไม่อยู่ใน enum (code = VALIDATION_FAILED)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: สมาชิกยังไม่มี Wallet (code = WALLET_NOT_FOUND)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
 
   /topups/config:
     get:
@@ -82,21 +101,27 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Topup' }
-        '400':
-          description: ยอดต่ำกว่าขั้นต่ำหรือเกินสูงสุด (code = TOPUP_AMOUNT_OUT_OF_RANGE)
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: สมาชิกยังไม่มี Wallet (code = WALLET_NOT_FOUND)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422':
+          description: ยอดต่ำกว่าขั้นต่ำหรือเกินสูงสุดตาม wallet_setting (code = TOPUP_AMOUNT_OUT_OF_RANGE)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
               example:
                 code: TOPUP_AMOUNT_OUT_OF_RANGE
                 message: เติมได้ตั้งแต่ 100 ถึง 10,000 บาท
-                details: { min: '100', max: '10000' }
         '502':
-          description: Payment Gateway ไม่ตอบ (code = PAYMENT_GATEWAY_UNAVAILABLE)
+          description: Payment Gateway ไม่ตอบ (code = PAYMENT_GATEWAY_UNAVAILABLE) เกิดได้เฉพาะ provider = omise
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
 
   /topups/{topupId}:
     get:
@@ -110,8 +135,13 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Topup' }
-        '404': { $ref: '#/components/responses/NotFound' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: ไม่พบรายการ หรือเป็นของสมาชิกคนอื่น (code = TOPUP_NOT_FOUND) ตอบ 404 ทั้งสองกรณีเพื่อไม่ให้รู้ว่ามี id นี้อยู่
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
 
   /webhooks/payment:
     post:
@@ -120,12 +150,16 @@ paths:
       description: |
         ไม่ต้องมี JWT แต่ต้องตรวจลายเซ็นใน header ทุกครั้ง
         ถ้าได้รับ event ของ `gatewayRef` เดิมซ้ำ ให้ตอบ 200 โดยไม่เติมเงินซ้ำ
-        รูปแบบ body จริงขึ้นกับ Gateway ที่เลือก ตรงนี้เป็นรูปแบบกลางที่ใช้ทำ mock
+        รูปแบบ body ขึ้นกับ `app.payment.provider`
+        - `mock`: body ตาม `PaymentWebhook` ด้านล่าง ตรวจ HMAC-SHA256 ของ raw body ใน `X-Signature`
+        - `omise`: body เป็น event ของ Omise (`charge.complete`) ไม่มี `X-Signature` ระบบจะไม่เชื่อ body
+          แต่เรียก `GET https://api.omise.co/charges/{id}` ถามสถานะจริงก่อนเติมเงิน
       security: []
       parameters:
         - name: X-Signature
           in: header
-          required: true
+          required: false
+          description: HMAC-SHA256 (hex) ของ raw body ด้วย PAYMENT_WEBHOOK_SECRET บังคับเมื่อ provider = mock
           schema: { type: string }
       requestBody:
         required: true
@@ -213,6 +247,8 @@ paths:
       summary: สร้าง Wallet ยอด 0 ให้สมาชิกใหม่ (identity-service เรียกหลังยืนยัน OTP)
       description: เรียกซ้ำด้วย userId เดิมได้ จะคืน Wallet เดิม
       security: []
+      parameters:
+        - $ref: '#/components/parameters/InternalToken'
       requestBody:
         required: true
         content:
@@ -228,6 +264,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Wallet' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/InvalidInternalToken' }
 
   /internal/wallets/{userId}/debit:
     post:
@@ -238,6 +276,7 @@ paths:
         ส่ง `Idempotency-Key` เดิมซ้ำด้วย body เดิม จะได้ผลเดิมกลับมาโดยไม่ตัดซ้ำ
       security: []
       parameters:
+        - $ref: '#/components/parameters/InternalToken'
         - $ref: '#/components/parameters/UserId'
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -263,6 +302,7 @@ paths:
                 details: { balance: '150.00', shortfall: '90.00' }
         '409': { $ref: '#/components/responses/IdempotencyConflict' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '401': { $ref: '#/components/responses/InvalidInternalToken' }
 
   /internal/wallets/{userId}/credit:
     post:
@@ -270,6 +310,7 @@ paths:
       summary: คืนเงิน (ยกเลิกการจอง, คืนเงินประกัน)
       security: []
       parameters:
+        - $ref: '#/components/parameters/InternalToken'
         - $ref: '#/components/parameters/UserId'
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -286,6 +327,7 @@ paths:
               schema: { $ref: '#/components/schemas/Transaction' }
         '409': { $ref: '#/components/responses/IdempotencyConflict' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '401': { $ref: '#/components/responses/InvalidInternalToken' }
 
 components:
   securitySchemes:
@@ -305,6 +347,12 @@ components:
       in: path
       required: true
       schema: { type: integer, format: int64 }
+    InternalToken:
+      name: X-Internal-Token
+      in: header
+      required: true
+      description: ความลับที่ใช้ร่วมกันระหว่าง service (INTERNAL_API_TOKEN)
+      schema: { type: string }
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -318,6 +366,7 @@ components:
     Size:
       name: size
       in: query
+      description: เกิน 100 จะถูกปรับเป็น 100, น้อยกว่า 1 ถูกปรับเป็น 1
       schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
     From:
       name: from
@@ -331,6 +380,11 @@ components:
       schema: { type: string, format: date, example: '2026-11-30' }
 
   responses:
+    InvalidInternalToken:
+      description: ไม่มีหรือไม่ตรง X-Internal-Token (code = INVALID_INTERNAL_TOKEN)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
     Unauthorized:
       description: ไม่ได้ login (code = UNAUTHORIZED)
       content:
@@ -342,7 +396,7 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
     NotFound:
-      description: ไม่พบข้อมูล หรือไม่ใช่ของผู้ใช้คนนี้ (code = NOT_FOUND)
+      description: ไม่พบข้อมูล หรือไม่ใช่ของผู้ใช้คนนี้ (code ขึ้นกับ resource เช่น WALLET_NOT_FOUND, TOPUP_NOT_FOUND)
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
@@ -471,7 +525,10 @@ components:
         status: { $ref: '#/components/schemas/TopupStatus' }
         qrImage:
           type: string
-          description: รูป PromptPay QR แบบ data URL มีค่าเฉพาะตอน PENDING
+          description: |
+            รูป PromptPay QR ใส่ใน `<img src>` ได้เลย มีค่าเฉพาะตอน PENDING
+            - provider = mock: data URL (`data:image/png;base64,...`)
+            - provider = omise: https URL ของ Omise (redirect ไปไฟล์ SVG)
           example: data:image/png;base64,iVBORw0KGgo...
         expiresAt: { type: string, format: date-time }
         paidAt: { type: string, format: date-time, nullable: true }

@@ -33,7 +33,9 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             "/api/auth/resend-otp",
             "/api/auth/login",
             "/api/auth/logout",
-            "/api/auth/staff/login");
+            "/api/auth/staff/login",
+            "/api/topups/config",
+            "/api/webhooks/payment");
 
     private final SecretKey key;
 
@@ -49,6 +51,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
                     h.remove("X-User-Id");
                     h.remove("X-User-Type");
                     h.remove("X-Permissions");
+                    h.remove("X-Internal-Token");
                 })
                 .build();
 

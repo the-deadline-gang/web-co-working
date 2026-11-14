@@ -1,0 +1,26 @@
+meta {
+  name: 02 Get my wallet
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/me/wallet
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.walletId: isDefined
+  res.body.displayId: startsWith W-
+  res.body.balance: isNumber
+}
+
+script:post-response {
+  bru.setVar("memberBalance", res.body.balance);
+}
+
+docs {
+  W-04 ยอดเงินของสมาชิกที่ login อยู่
+}

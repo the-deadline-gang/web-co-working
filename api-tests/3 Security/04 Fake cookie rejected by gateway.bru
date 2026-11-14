@@ -1,0 +1,20 @@
+meta {
+  name: 04 Fake cookie rejected by gateway
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/me
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: access_token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.fake
+}
+
+assert {
+  res.status: eq 401
+  res.body.code: eq UNAUTHORIZED
+}

@@ -1,0 +1,26 @@
+meta {
+  name: 06 Update invalid fields
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{baseUrl}}/admin/wallet-settings
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "rate": 0,
+    "minThb": 100,
+    "qrExpireMinutes": 90
+  }
+}
+
+assert {
+  res.status: eq 400
+  res.body.details.rate: isDefined
+  res.body.details.maxThb: isDefined
+  res.body.details.qrExpireMinutes: isDefined
+}

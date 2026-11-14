@@ -1,0 +1,25 @@
+meta {
+  name: 07 Fake X-User-Id is ignored
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/me/wallet
+  body: none
+  auth: none
+}
+
+headers {
+  X-User-Id: 99999
+  X-User-Type: MEMBER
+}
+
+assert {
+  res.status: eq 200
+  res.body.balance: eq {{memberBalance}}
+}
+
+docs {
+  แอบส่ง X-User-Id ของคนอื่น Gateway ต้องลบทิ้งแล้วใส่ค่าจริงจาก JWT จึงยังได้ wallet ของตัวเอง
+}

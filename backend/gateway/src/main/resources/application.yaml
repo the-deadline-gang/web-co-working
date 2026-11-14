@@ -12,6 +12,12 @@ spring:
                 - Path=/api/auth/**,/api/me,/api/admin/roles/**,/api/admin/permissions,/api/admin/employees/**
               filters:
                 - StripPrefix=1
+            - id: wallet
+              uri: http://localhost:8082
+              predicates:
+                - Path=/api/me/wallet/**,/api/topups/**,/api/webhooks/**,/api/admin/wallet-settings,/api/admin/topups/**,/api/admin/reports/**
+              filters:
+                - StripPrefix=1
 
 server:
   port: 8080

@@ -1,0 +1,15 @@
+meta {
+  name: 11 Member cannot read settings
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/admin/wallet-settings
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 403
+}

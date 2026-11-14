@@ -1,0 +1,24 @@
+meta {
+  name: 01 Staff cannot call /me
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{identityUrl}}/me
+  body: none
+  auth: none
+}
+
+headers {
+  X-User-Id: 1
+  X-User-Type: STAFF
+}
+
+assert {
+  res.status: eq 403
+}
+
+docs {
+  ยิงตรงที่ identity (8081) เพื่อจำลอง header ที่ Gateway ส่งมา
+}

@@ -94,6 +94,10 @@ public class GlobalExceptionHandler {
         return respond(HttpStatus.INTERNAL_SERVER_ERROR,
                 ErrorResponse.of("INTERNAL_ERROR", "เกิดข้อผิดพลาด กรุณาลองใหม่"));
     }
+    @ExceptionHandler(WalletUnavailableException.class)
+    ResponseEntity<ErrorResponse> handleWalletUnavailable(WalletUnavailableException e) {
+        return respond(HttpStatus.SERVICE_UNAVAILABLE, ErrorResponse.of("WALLET_UNAVAILABLE", e.getMessage()));
+    }
 
     // ---------- helper ----------
 

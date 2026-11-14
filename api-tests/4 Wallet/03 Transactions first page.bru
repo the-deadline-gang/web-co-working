@@ -1,0 +1,35 @@
+meta {
+  name: 03 Transactions first page
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/me/wallet/transactions?page=0&size=2
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.page: eq 0
+  res.body.size: eq 2
+  res.body.items: isArray
+  res.body.totalItems: isNumber
+}
+
+tests {
+  test("ใหม่สุดก่อน", function () {
+    const items = res.body.items;
+    for (let i = 1; i < items.length; i++) {
+      expect(new Date(items[i - 1].createdAt) >= new Date(items[i].createdAt)).to.equal(true);
+    }
+  });
+  test("ได้ไม่เกิน size", function () {
+    expect(res.body.items.length).to.be.at.most(2);
+  });
+}
+
+docs {
+  W-04 แบ่งหน้า ใหม่สุดก่อน
+}

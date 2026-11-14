@@ -1,0 +1,25 @@
+meta {
+  name: 05 Update min greater than max
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseUrl}}/admin/wallet-settings
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "rate": 1,
+    "minThb": 5000,
+    "maxThb": 100,
+    "qrExpireMinutes": 15
+  }
+}
+
+assert {
+  res.status: eq 400
+  res.body.code: eq VALIDATION_FAILED
+}

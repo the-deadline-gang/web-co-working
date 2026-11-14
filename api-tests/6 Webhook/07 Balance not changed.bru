@@ -1,0 +1,16 @@
+meta {
+  name: 07 Balance not changed
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/me/wallet
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.balance: eq {{balanceAfterPay}}
+}

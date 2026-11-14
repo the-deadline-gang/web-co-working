@@ -1,0 +1,38 @@
+meta {
+  name: 03 Create topup 500
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/topups
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "amountThb": 500
+  }
+}
+
+assert {
+  res.status: eq 201
+  res.body.status: eq PENDING
+  res.body.amountThb: eq 500
+  res.body.displayId: startsWith PAY-
+  res.body.qrImage: isString
+  res.body.paidAt: isNull
+  res.body.balanceAfter: isNull
+}
+
+script:post-response {
+  bru.setVar("topupId", res.body.topupId);
+}
+
+docs {
+  W-07 สร้าง topup แล้วเก็บ topupId ไว้
+  ถ้าจะทดสอบ webhook ต่อ ให้ดู gateway_ref ของ topup นี้จาก DB แล้วใส่ในตัวแปร gatewayRef ของ environment:
+    SELECT gateway_ref FROM wallet_db.topup ORDER BY topup_id DESC LIMIT 1;
+  (เมื่อทำ W-10 /admin/topups แล้ว จะดึงอัตโนมัติได้)
+}
