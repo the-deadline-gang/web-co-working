@@ -1,5 +1,7 @@
 package com.cosync.wallet.payment;
 
+import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -18,8 +20,13 @@ public class MockPaymentGateway implements PaymentGateway {
     }
 
     @Override
-    public CreatedPayment createPayment(int amountThb) {
-        String ref = "mock_" + UUID.randomUUID();          // ref ปลอม เอาไปใส่ใน webhook ของ Bruno
-        return new CreatedPayment(ref, qrCodeService.generate(amountThb));
+    public CreatedPayment createPayment(int amountThb, Instant expiresAt) {
+        String ref = "mock_" + UUID.randomUUID();
+        return new CreatedPayment(ref, qrCodeService.generate(amountThb));   // QR ของเราเองไม่มีวันหมดอายุ เลยไม่ได้ใช้ expiresAt
+    }
+
+    @Override
+    public Optional<PaymentResult> fetchStatus(String gatewayRef) {
+        return Optional.empty();       // mock ไม่มีใครให้ถาม ผลการจ่ายมาทาง /webhooks/payment อย่างเดียว
     }
 }

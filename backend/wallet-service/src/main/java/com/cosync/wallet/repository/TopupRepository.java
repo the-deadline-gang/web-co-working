@@ -1,6 +1,8 @@
 package com.cosync.wallet.repository;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -42,4 +44,7 @@ public interface TopupRepository extends JpaRepository<Topup, Long> {
                             @Param("start") Instant start,
                             @Param("end") Instant end,
                             Pageable pageable);
+
+    /** topup ที่ยังรอผลการจ่าย (PENDING / EXPIRED) ซึ่งสร้างหลังเวลาที่กำหนด ใช้ให้ job ไล่ถาม gateway */
+    List<Topup> findByStatusInAndCreatedAtAfter(Collection<TopupStatus> statuses, Instant since);
 }

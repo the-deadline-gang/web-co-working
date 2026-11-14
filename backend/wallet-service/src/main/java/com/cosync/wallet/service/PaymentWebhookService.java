@@ -12,10 +12,13 @@ import com.cosync.wallet.dto.webhook.PaymentWebhook;
 import com.cosync.wallet.entity.PaymentEvent;
 import com.cosync.wallet.entity.Topup;
 import com.cosync.wallet.entity.WalletTransaction;
+import com.cosync.wallet.payment.PaymentResult;
 import com.cosync.wallet.repository.PaymentEventRepository;
 import com.cosync.wallet.repository.TopupRepository;
 import com.cosync.wallet.repository.WalletRepository;
 import com.cosync.wallet.repository.WalletTransactionRepository;
+
+import tools.jackson.databind.json.JsonMapper;
 
 // review 10/11/2026 by peak
 /**
@@ -31,15 +34,18 @@ public class PaymentWebhookService {
     private final TopupRepository topupRepository;
     private final WalletRepository walletRepository;
     private final WalletTransactionRepository walletTransactionRepository;
+    private final JsonMapper jsonMapper;
 
     public PaymentWebhookService(PaymentEventRepository paymentEventRepository,
                                  TopupRepository topupRepository,
                                  WalletRepository walletRepository,
-                                 WalletTransactionRepository walletTransactionRepository) {
+                                 WalletTransactionRepository walletTransactionRepository,
+                                 JsonMapper jsonMapper) {
         this.paymentEventRepository = paymentEventRepository;
         this.topupRepository = topupRepository;
         this.walletRepository = walletRepository;
         this.walletTransactionRepository = walletTransactionRepository;
+        this.jsonMapper = jsonMapper;
     }
 
     /**
@@ -95,5 +101,23 @@ public class PaymentWebhookService {
 
         log.info("webhook {} เติม {} Token ให้ topup {} ยอดหลังเติม {}",
                 event.eventId(), topup.getTokenAmount(), topup.getId(), txn.getBalanceAfter());
+    }
+
+
+    /**
+     * บันทึกผลที่ได้จากการถาม payment gateway เอง (polling)
+     * แปลงผลให้หน้าตาเหมือน webhook แล้วส่งต่อให้ handle() ทำต่อ (กันซ้ำ, ล็อก, เช็กยอด, เติม Token)
+     * eventId = "poll:{gatewayRef}:{status}" → ถามซ้ำกี่รอบก็บันทึกแค่ครั้งเดียว
+     * @param result ผลการจ่ายที่ได้จาก gateway (successful / failed)
+     */
+    @Transactional
+    public void applyPolled(PaymentResult result) {
+        PaymentWebhook event = new PaymentWebhook(
+                "poll:" + result.gatewayRef() + ":" + result.status(),
+                result.gatewayRef(),
+                result.status(),
+                result.amountThb(),
+                result.paidAt());
+        handle(event, jsonMapper.writeValueAsString(result));
     }
 }

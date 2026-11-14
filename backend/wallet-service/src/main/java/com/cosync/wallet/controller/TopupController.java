@@ -14,6 +14,7 @@ import com.cosync.wallet.dto.topup.CreateTopupRequest;
 import com.cosync.wallet.dto.topup.TopupConfigResponse;
 import com.cosync.wallet.dto.topup.TopupResponse;
 import com.cosync.wallet.security.MemberOnly;
+import com.cosync.wallet.service.PaymentPoller;
 import com.cosync.wallet.service.TopupService;
 
 import jakarta.validation.Valid;
@@ -24,9 +25,11 @@ import jakarta.validation.Valid;
 public class TopupController {
 
     private final TopupService topupService;
+    private final PaymentPoller paymentPoller;
 
-    public TopupController(TopupService topupService) {
+    public TopupController(TopupService topupService,PaymentPoller paymentPoller) {
         this.topupService = topupService;
+        this.paymentPoller = paymentPoller;
     }
 
     @GetMapping("/config")          // GET /topups/config
@@ -45,10 +48,11 @@ public class TopupController {
 
     @MemberOnly
     @GetMapping("/{topupId}")
-    public TopupResponse getTopup(
-            @PathVariable Long topupId,
-            @RequestHeader("X-User-Id") Long userId) {
-        return topupService.get(userId,topupId);
-    }
+    public TopupResponse getTopup(@PathVariable Long topupId,
+                                @RequestHeader("X-User-Id") Long userId) {
+        paymentPoller.pollFor(userId, topupId);       // ① ถาม gateway ก่อน (นอก transaction)
+        return topupService.get(userId, topupId);     // ② อ่านสถานะล่าสุด
+}
+    
 
 }

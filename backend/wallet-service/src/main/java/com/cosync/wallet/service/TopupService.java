@@ -70,11 +70,12 @@ public class TopupService {
 
         Wallet wallet =  walletRepository.findByUserId(userId).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "WALLET_NOT_FOUND", "ไม่พบกระเป๋าเงิน"));
 
-        CreatedPayment payment = paymentGateway.createPayment(req.amountThb());
-
         Instant expiresAt = Instant.now().plus(setting.getQrExpireMinutes(), ChronoUnit.MINUTES);
-        Topup saved =  new Topup(wallet, req.amountThb(), setting.getRate(), payment.gatewayRef(), payment.qrImage(), expiresAt, req.returnToBookingId());
-        topupRepository.save(saved);
+        CreatedPayment payment = paymentGateway.createPayment(req.amountThb(), expiresAt);
+        Topup saved = new Topup(wallet, req.amountThb(), setting.getRate(),
+                payment.gatewayRef(), payment.qrImage(), expiresAt, req.returnToBookingId());
+
+        topupRepository.save(saved); 
         return  TopupResponse.from(saved);
     }
 
@@ -98,6 +99,15 @@ public class TopupService {
         return TopupResponse.from(topup);
     }
 
+    /** 
+     * เป็นการค้นหาประวัติการเงินสำหรับ Admin
+     * @param status สถานะของการเงินนั้นที่จะหา
+     * @param from จากวันที่เท่าไหร่
+     * @param to ถึงวัน่ที่เท่าไหร่
+     * @param page จะเอากี่หน้า
+     * @param size หน้าละเท่าไหร่
+     * @return ตอบกลับเป็น  PageResponse
+     */
     @Transactional(readOnly = true)
     public PageResponse<AdminTopupResponse> searchForAdmin(TopupStatus status, LocalDate from, LocalDate to,
                                                             int page, int size) {
