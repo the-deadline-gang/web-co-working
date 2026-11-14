@@ -1,14 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, UserPlus, Volume2 } from "lucide-react";
+import { redirect } from "next/navigation";
+import { getMe } from "@/lib/api/me";
 
 // ===== ข้อมูลตัวอย่าง (mock) =====
 // TODO: เปลี่ยนเป็นข้อมูลจริงเมื่อมี API
-//   user          → GET /me (มีแล้ว)
 //   upcoming      → booking-service (ยังไม่มี)
 //   notifications → ยังไม่มีทั้งใน API และ DFD
 //   loans         → booking-service (ยังไม่มี)
-const user = { firstName: "กมลชนก", lastName: "ศรีสุข", displayId: "U-000123" };
 
 const upcoming = {
   resourceCode: "B-ROOM-02",
@@ -36,7 +36,10 @@ const loans = [{ id: "EQ-L-014", name: "สาย Adapter HDMI", borrowedAt: "3 
 
 const expiringTokens = { amount: 300, expiresOn: "31 ต.ค." };
 
-export default function HomePage() {
+export default async function HomePage() {
+
+  const user = await getMe();
+  if (!user) redirect("/auth");
   return (
     <div className="space-y-8">
       {/* ===== แถว 1: หัวข้อ + ปุ่มลัด ===== */}
@@ -65,7 +68,6 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* ===== แถว 2: การ์ดเหลือง (ซ้าย กว้างกว่า) | การ์ดการจอง (ขวา) ===== */}
       <div className="grid grid-cols-[1.7fr_1fr] gap-6">
         {/* การ์ดเหลือง */}
         <div className="relative h-80 overflow-hidden rounded-2xl border-2 border-[#451A03] bg-[#FEF3C7]">
@@ -85,7 +87,6 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* การ์ดการจอง (แบบตั๋ว): ส่วนบนชิดบน ส่วนล่างชิดล่าง */}
         <div className="relative flex h-80 flex-col justify-between rounded-2xl border-2 border-[#451A03] bg-white p-6 shadow-[4px_4px_0_#451A03]">
           <div>
             <p className="text-sm font-bold text-[#451A03]">การจองที่ใกล้ถึง</p>
@@ -94,7 +95,6 @@ export default function HomePage() {
               จองเมื่อ {upcoming.bookedAt.date} <span className="font-mono">{upcoming.bookedAt.time}</span>
             </p>
 
-            {/* เส้นประ + รอยเว้าซ้ายขวา */}
             <div className="relative mt-5">
               <div className="border-t-2 border-dashed border-[#D9C49A]" />
               <span className="absolute -left-9 top-1/2 h-6 w-6 -translate-y-1/2 rounded-full border-2 border-[#451A03] bg-[#FFFBEB]" />
@@ -116,7 +116,6 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* ===== แถว 3: แจ้งเตือน | อุปกรณ์ที่ยืมอยู่ ===== */}
       <div className="grid grid-cols-2 gap-6">
         {/* แจ้งเตือน */}
         <section className="space-y-4">
@@ -124,7 +123,6 @@ export default function HomePage() {
 
           {notifications.map((n) =>
             n.type === "noise" ? (
-              // แจ้งเตือนสำคัญ (ส้ม) เช่น เสียงดังเกินไป
               <div
                 key={n.id}
                 className="flex gap-4 rounded-2xl border-2 border-[#9A2B12] bg-[#FDE8D2] p-5"
@@ -139,7 +137,6 @@ export default function HomePage() {
                 </div>
               </div>
             ) : (
-              // แจ้งเตือนทั่วไป (ขาว) เช่น ได้รับคำเชิญ
               <div
                 key={n.id}
                 className="flex gap-4 rounded-2xl border-2 border-[#F5E3B3] bg-white p-5"
@@ -185,7 +182,6 @@ export default function HomePage() {
             </div>
           ))}
 
-          {/* Token ที่ใกล้หมดอายุ (กรอบประ) */}
           <div className="rounded-2xl border-2 border-dashed border-[#E8D49A] px-5 py-4 text-sm text-[#451A03]">
             <span className="font-mono font-bold">{expiringTokens.amount}</span> Token จะหมดอายุ{" "}
             {expiringTokens.expiresOn}

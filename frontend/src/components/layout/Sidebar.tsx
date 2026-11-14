@@ -1,8 +1,9 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { House, CirclePlus, CalendarDays, QrCode, Wallet, Package, User } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { House, CirclePlus, CalendarDays, QrCode, Wallet, Package, User, LogOut } from "lucide-react";
+import type { Me } from "@/types/api";
 
 
 const MENU = [
@@ -15,15 +16,18 @@ const MENU = [
   { label: "โปรไฟล์", href: "/profile", icon: User },
 ];
 
-export function Sidebar() {
+export function Sidebar({user}: {user: Me}) {
   const pathname = usePathname(); // URL ปัจจุบัน เช่น "/home" → ใช้เช็คว่าเมนูไหนกำลังเปิดอยู่
+  const router = useRouter();
 
-  const user = {
-    firstName: "กมลชนก",
-    lastName: "ศรีสุข",
-    displayId: "U-000123",
-  };
-  const wallet = { balance: 1250, walletNo: "W-000123" };
+  const wallet = { balance: 1250, walletNo: "W-000123" }; // TODO: รอ wallet-service
+
+  // ออกจากระบบ: backend ลบ cookie access_token → กลับไปหน้าเข้าสู่ระบบ
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/auth");
+    router.refresh(); // ล้างข้อมูลหน้าเก่าที่ Next.js จำไว้
+  }
 
   return (
     
@@ -73,6 +77,17 @@ export function Sidebar() {
           </p>
           <p className="font-mono text-xs text-[#451A03]">{user.displayId}</p>
         </div>
+
+        {/* ปุ่มออกจากระบบ (ml-auto = ดันไปชิดขวาสุด) */}
+        <button
+          type="button"
+          onClick={handleLogout}
+          aria-label="ออกจากระบบ"
+          title="ออกจากระบบ"
+          className="ml-auto rounded-lg p-1.5 text-[#451A03] hover:bg-[#F5A54A]"
+        >
+          <LogOut className="h-5 w-5" />
+        </button>
       </div>
     </aside>
   );
