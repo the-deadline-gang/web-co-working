@@ -13,9 +13,9 @@ public final class ThaiDateRange {
     public static final ZoneId TH = ZoneId.of("Asia/Bangkok");
     private static final int MAX_DAYS = 366;
 
-    private ThaiDateRange() {}          // ไม่ให้ใครสร้าง object มีแต่เมธอด static
+    private ThaiDateRange() {}         
 
-    /** เที่ยงคืนต้นวัน (เวลาไทย) เช่น 2026-11-01 → 2026-10-31T17:00:00Z */
+    /** เที่ยงคืนต้นวัน (เวลาไทย) เช่น 2026-11-01 > 2026-10-31T17:00:00Z */
     public static Instant startOf(LocalDate day) {
         return day.atStartOfDay(TH).toInstant();
     }

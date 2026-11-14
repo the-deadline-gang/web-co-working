@@ -27,6 +27,12 @@ public class ReportService {
      }
 
 
+     /**
+      * เอาไว้หาว่ามีรายการอะไรบ้างจากวันที่หาจนถึงวันที่จะหา
+      * @param from วันที่เริ่มหา
+      * @param to วันสุดท้่ายที่หา
+      * @return ตอบกลับแบบ RevenueReport 
+      */
     @Transactional(readOnly = true)
     public RevenueReport revenue(LocalDate from, LocalDate to) {
         ThaiDateRange.validate(from, to);
@@ -43,7 +49,7 @@ public class ReportService {
                     sum(t, "BOOKING").negate(),       // ledger เก็บเงินออกเป็นลบ รายงานแสดงเป็นบวก
                     sum(t, "REFUND"),
                     sum(t, "LOAN_FEE").negate(),
-                    Money.ZERO));                      // ⚠️ ดูหมายเหตุด้านล่าง
+                    Money.ZERO));                      
         }
         return new RevenueReport(from, to, days);
     }
