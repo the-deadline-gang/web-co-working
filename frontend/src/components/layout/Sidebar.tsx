@@ -78,7 +78,6 @@ export function Sidebar({user}: {user: Me}) {
           <p className="font-mono text-xs text-[#451A03]">{user.displayId}</p>
         </div>
 
-        {/* ปุ่มออกจากระบบ (ml-auto = ดันไปชิดขวาสุด) */}
         <button
           type="button"
           onClick={handleLogout}
