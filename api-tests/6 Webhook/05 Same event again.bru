@@ -1,0 +1,28 @@
+meta {
+  name: 05 Same event again
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/webhooks/payment
+  body: text
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Signature: {{webhookSignature}}
+}
+
+body:text {
+  {{webhookBody}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+docs {
+  ยิง body เดิมทุกตัวอักษรด้วย eventId เดิม ต้องได้ 200 แต่ไม่เติมซ้ำ (BR-05)
+}

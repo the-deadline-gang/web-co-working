@@ -34,7 +34,7 @@ CREATE TABLE wallet_transaction (
     ref_id          BIGINT        NULL,                      -- id ของรายการต้นทาง
     note            VARCHAR(200)  NULL,
     idempotency_key VARCHAR(100)  NULL,                      -- จาก header Idempotency-Key (ENG-4)
-    request_hash    CHAR(64)      NULL,                      -- SHA-256 ของ body ไว้เช็ก key เดิม body ต่าง
+    request_hash    VARCHAR(64)   NULL,                      -- SHA-256 ของ body ไว้เช็ก key เดิม body ต่าง
     created_at      DATETIME(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 
     PRIMARY KEY (txn_id),

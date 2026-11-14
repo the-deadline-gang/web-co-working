@@ -1,0 +1,34 @@
+meta {
+  name: 03 Member cannot create employee
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{identityUrl}}/admin/employees
+  body: json
+  auth: none
+}
+
+headers {
+  X-User-Id: 4
+  X-User-Type: MEMBER
+  X-Permissions: employee.manage
+}
+
+body:json {
+  {
+    "firstName": "แฮก",
+    "lastName": "เกอร์",
+    "email": "hacker{{$timestamp}}@cosync.local",
+    "roleId": 1
+  }
+}
+
+assert {
+  res.status: eq 403
+}
+
+docs {
+  ถึงจะใส่ permission มา แต่เป็น MEMBER ต้องได้ 403
+}

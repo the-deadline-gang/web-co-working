@@ -1,0 +1,21 @@
+meta {
+  name: 08 Create topup missing amount
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/topups
+  body: json
+  auth: none
+}
+
+body:json {
+  {}
+}
+
+assert {
+  res.status: eq 400
+  res.body.code: eq VALIDATION_FAILED
+  res.body.details.amountThb: isDefined
+}

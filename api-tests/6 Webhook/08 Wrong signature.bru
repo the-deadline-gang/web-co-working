@@ -1,0 +1,36 @@
+meta {
+  name: 08 Wrong signature
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/webhooks/payment
+  body: text
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Signature: {{webhookSignature}}
+}
+
+body:text {
+  {{webhookBody}}
+}
+
+assert {
+  res.status: eq 401
+  res.body.code: eq INVALID_SIGNATURE
+}
+
+script:pre-request {
+  const CryptoJS = require("crypto-js");
+  function signAndSet(body, secret) {
+    bru.setVar("webhookBody", body);
+    bru.setVar("webhookSignature", CryptoJS.HmacSHA256(body, secret).toString());
+  }
+
+  const body = JSON.stringify({ eventId: "evt_fake", gatewayRef: "x", status: "successful", amountThb: 500 });
+  signAndSet(body, "wrong-secret");
+}

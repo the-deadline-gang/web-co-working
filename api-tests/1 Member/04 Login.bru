@@ -1,0 +1,24 @@
+meta {
+  name: 04 Login
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/auth/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{memberEmail}}",
+    "password": "{{memberPassword}}"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.email: eq {{memberEmail}}
+  res.headers["set-cookie"]: isDefined
+}

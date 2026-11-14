@@ -1,0 +1,37 @@
+meta {
+  name: 08 Debit same key same body
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{walletUrl}}/internal/wallets/{{testUserId}}/debit
+  body: json
+  auth: none
+}
+
+headers {
+  X-Internal-Token: {{process.env.INTERNAL_API_TOKEN}}
+  Content-Type: application/json
+  Idempotency-Key: {{payKey}}
+}
+
+body:json {
+  {
+    "amount": 240.00,
+    "type": "BOOKING",
+    "refType": "BOOKING",
+    "refId": 192,
+    "note": "B-ROOM-02 14:00-16:00"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.txnId: eq {{payTxnId}}
+  res.body.balanceAfter: eq 60
+}
+
+docs {
+  ส่งซ้ำ (240 กับ 240.00 นับเป็นค่าเดียวกัน) ต้องได้รายการเดิม ไม่ตัดซ้ำ
+}

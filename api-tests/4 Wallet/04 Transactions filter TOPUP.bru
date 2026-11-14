@@ -1,0 +1,21 @@
+meta {
+  name: 04 Transactions filter TOPUP
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/me/wallet/transactions?type=TOPUP
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test("ทุกรายการเป็น TOPUP", function () {
+    res.body.items.forEach(t => expect(t.type).to.equal("TOPUP"));
+  });
+}

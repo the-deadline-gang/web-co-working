@@ -1,0 +1,31 @@
+meta {
+  name: 09 Debit same key different body
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{walletUrl}}/internal/wallets/{{testUserId}}/debit
+  body: json
+  auth: none
+}
+
+headers {
+  X-Internal-Token: {{process.env.INTERNAL_API_TOKEN}}
+  Content-Type: application/json
+  Idempotency-Key: {{payKey}}
+}
+
+body:json {
+  {
+    "amount": 999,
+    "type": "BOOKING",
+    "refType": "BOOKING",
+    "refId": 192
+  }
+}
+
+assert {
+  res.status: eq 409
+  res.body.code: eq IDEMPOTENCY_CONFLICT
+}

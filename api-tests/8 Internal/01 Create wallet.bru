@@ -1,0 +1,39 @@
+meta {
+  name: 01 Create wallet
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{walletUrl}}/internal/wallets
+  body: json
+  auth: none
+}
+
+headers {
+  X-Internal-Token: {{process.env.INTERNAL_API_TOKEN}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "userId": {{testUserId}}
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.balance: eq 0
+}
+
+script:pre-request {
+  bru.setVar("testUserId", 900000000 + Math.floor(Math.random() * 99999999));
+}
+
+script:post-response {
+  bru.setVar("testWalletId", res.body.walletId);
+}
+
+docs {
+  W-03 ยิงตรงที่ wallet (ไม่ผ่าน Gateway เพราะ /internal ไม่มี route) ใช้ userId สุ่มที่ไม่มีใน identity
+}

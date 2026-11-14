@@ -1,0 +1,26 @@
+meta {
+  name: 04 Balance increased by 500
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/me/wallet
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+}
+
+script:post-response {
+  bru.setVar("balanceAfterPay", res.body.balance);
+}
+
+tests {
+  test("ยอดเพิ่ม 500", function () {
+    const before = Number(bru.getVar("balanceBefore"));
+    expect(Number(res.body.balance)).to.equal(before + 500);
+  });
+}

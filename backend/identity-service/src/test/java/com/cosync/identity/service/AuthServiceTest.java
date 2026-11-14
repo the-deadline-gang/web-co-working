@@ -28,7 +28,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 
+import com.cosync.identity.client.WalletClient;
 import com.cosync.identity.common.ApiException;
+import com.cosync.identity.common.WalletUnavailableException;
 import com.cosync.identity.dto.login.LoginRequest;
 import com.cosync.identity.dto.login.LoginResult;
 import com.cosync.identity.dto.login.MeResponse;
@@ -55,13 +57,14 @@ class AuthServiceTest {
     @Mock UserRepository userRepository;
     @Mock EmployeeRepository employeeRepository;
     @Mock OtpService otpService;
+    @Mock WalletClient walletClient;
 
     private final JwtService jwtService = new JwtService(TestData.JWT_SECRET, 12);
     private AuthService authService;
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(userRepository, TestData.PASSWORD_ENCODER, otpService, jwtService, employeeRepository);
+        authService = new AuthService(userRepository, TestData.PASSWORD_ENCODER, otpService, jwtService, employeeRepository, walletClient);
     }
 
     private static RegisterRequest registerRequest(String email, String phone) {
@@ -146,6 +149,7 @@ class AuthServiceTest {
 
         verify(otpService).verify(user, "123456");
         assertTrue(user.isEmailVerified());
+        verify(walletClient).createWallet(4L);          // W-03: ยืนยันแล้วต้องสร้าง wallet
     }
 
     @Test
@@ -160,6 +164,24 @@ class AuthServiceTest {
                 () -> authService.verifyOtp(new VerifyOtpRequest(EMAIL, "000000")));
 
         assertFalse(user.isEmailVerified());
+        verifyNoInteractions(walletClient);              // OTP ผิด → ไม่ต้องไปสร้าง wallet
+    }
+
+    @Test
+    @DisplayName("TC-OTP-09 W-03 wallet ไม่ตอบ → โยน WalletUnavailableException ออกไป (503)")
+    void verifyOtp_walletDown_throws() {
+        User user = TestData.user(4L, EMAIL, hash(PASSWORD));
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
+        doThrow(new WalletUnavailableException()).when(walletClient).createWallet(4L);
+
+        assertThrows(WalletUnavailableException.class,
+                () -> authService.verifyOtp(new VerifyOtpRequest(EMAIL, "123456")));
+    }
+
+    @Test
+    @DisplayName("TC-OTP-10 W-03 WalletUnavailableException ต้องไม่ใช่ลูกของ ApiException ไม่อย่างนั้น noRollbackFor จะไม่ rollback")
+    void walletUnavailable_isNotApiException() {
+        assertFalse(ApiException.class.isAssignableFrom(WalletUnavailableException.class));
     }
 
     @Test
