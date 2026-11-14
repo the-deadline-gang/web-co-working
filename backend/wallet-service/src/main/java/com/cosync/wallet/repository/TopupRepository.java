@@ -3,6 +3,8 @@ package com.cosync.wallet.repository;
 import java.time.Instant;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
@@ -10,6 +12,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.cosync.wallet.entity.Topup;
+import com.cosync.wallet.entity.TopupStatus;
 
 import jakarta.persistence.LockModeType;
 
@@ -28,4 +31,15 @@ public interface TopupRepository extends JpaRepository<Topup, Long> {
             and t.expiresAt < :now
             """)
     int expireOverdue(@Param("now") Instant now);
+
+
+    @Query("""
+        select t from Topup t
+         where (:status is null or t.status = :status)
+           and t.createdAt >= :start and t.createdAt < :end
+        """)
+    Page<Topup> searchForAdmin(@Param("status") TopupStatus status,
+                            @Param("start") Instant start,
+                            @Param("end") Instant end,
+                            Pageable pageable);
 }

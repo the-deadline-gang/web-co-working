@@ -1,17 +1,26 @@
 package com.cosync.wallet.service;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.cosync.wallet.common.ApiException;
+import com.cosync.wallet.common.ThaiDateRange;
+import com.cosync.wallet.dto.PageResponse;
+import com.cosync.wallet.dto.topup.AdminTopupResponse;
 import com.cosync.wallet.dto.topup.CreateTopupRequest;
 import com.cosync.wallet.dto.topup.TopupConfigResponse;
 import com.cosync.wallet.dto.topup.TopupResponse;
 import com.cosync.wallet.entity.Topup;
+import com.cosync.wallet.entity.TopupStatus;
 import com.cosync.wallet.entity.Wallet;
 import com.cosync.wallet.entity.WalletSetting;
 import com.cosync.wallet.payment.CreatedPayment;
@@ -87,5 +96,15 @@ public class TopupService {
             topup.markExpired();
         }
         return TopupResponse.from(topup);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<AdminTopupResponse> searchForAdmin(TopupStatus status, LocalDate from, LocalDate to,
+                                                            int page, int size) {
+        ThaiDateRange.validate(from, to);
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, 100),
+                Sort.by(Sort.Direction.DESC, "createdAt", "id"));
+        Page<Topup> result = topupRepository.searchForAdmin(status,ThaiDateRange.startOf(from), ThaiDateRange.endOf(to), pageable);
+        return PageResponse.from(result, AdminTopupResponse::from);
     }
 }

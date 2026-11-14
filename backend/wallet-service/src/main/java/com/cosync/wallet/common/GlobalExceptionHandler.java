@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -107,6 +108,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(WalletUnavailableException.class)
     ResponseEntity<ErrorResponse> handleWalletUnavailable(WalletUnavailableException e) {
         return respond(HttpStatus.SERVICE_UNAVAILABLE, ErrorResponse.of("WALLET_UNAVAILABLE", e.getMessage()));
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    ResponseEntity<ErrorResponse> handleMissingParam(MissingServletRequestParameterException e) {
+        return respond(HttpStatus.BAD_REQUEST, new ErrorResponse("VALIDATION_FAILED", "ข้อมูลไม่ถูกต้อง",
+                Map.of(e.getParameterName(), "กรุณาระบุ " + e.getParameterName())));
     }
 
     // ---------- helper ----------
