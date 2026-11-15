@@ -26,9 +26,10 @@ public class GlobalExceptionHandler {
 
     
     private static final Map<String, ErrorResponse> DUPLICATE_ERRORS = Map.of(
-            "uk_app_user_email", ErrorResponse.of("EMAIL_TAKEN", "อีเมลนี้ถูกใช้สมัครแล้ว"),
-            "uk_app_user_phone", ErrorResponse.of("PHONE_TAKEN", "เบอร์โทรนี้ถูกใช้สมัครแล้ว"));
-
+        "uk_app_user_email", ErrorResponse.of("EMAIL_TAKEN", "อีเมลนี้ถูกใช้สมัครแล้ว"),
+        "uk_app_user_phone", ErrorResponse.of("PHONE_TAKEN", "เบอร์โทรนี้ถูกใช้สมัครแล้ว"),
+        "uk_employee_email", ErrorResponse.of("EMAIL_TAKEN", "อีเมลนี้ถูกใช้แล้ว"),
+        "uk_role_name",      ErrorResponse.of("ROLE_NAME_TAKEN", "ชื่อ role นี้ถูกใช้แล้ว"));
    
 
     /** ผิดกฎธุรกิจที่ Service โยนเอง เช่น อีเมลซ้ำ */

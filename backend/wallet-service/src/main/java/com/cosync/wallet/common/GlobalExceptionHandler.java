@@ -105,11 +105,7 @@ public class GlobalExceptionHandler {
                 ErrorResponse.of("INTERNAL_ERROR", "เกิดข้อผิดพลาด กรุณาลองใหม่"));
     }
 
-    @ExceptionHandler(WalletUnavailableException.class)
-    ResponseEntity<ErrorResponse> handleWalletUnavailable(WalletUnavailableException e) {
-        return respond(HttpStatus.SERVICE_UNAVAILABLE, ErrorResponse.of("WALLET_UNAVAILABLE", e.getMessage()));
-    }
-
+ 
     @ExceptionHandler(MissingServletRequestParameterException.class)
     ResponseEntity<ErrorResponse> handleMissingParam(MissingServletRequestParameterException e) {
         return respond(HttpStatus.BAD_REQUEST, new ErrorResponse("VALIDATION_FAILED", "ข้อมูลไม่ถูกต้อง",
