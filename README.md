@@ -5,7 +5,8 @@
 ```
 cosync/
 ├── docker-compose.yml          รันทุกอย่างด้วยคำสั่งเดียว
-├── .env.example                ค่า JWT_SECRET (คัดลอกเป็น .env)
+├── .env.example                ค่า secret และการตั้งค่า payment (คัดลอกเป็น .env)
+├── api-tests/                  Bruno collection (ดู api-tests/README.md)
 ├── docs/openapi/identity.yaml  สัญญา API ที่ frontend กับ backend ตกลงกัน
 ├── infra/postgres/init.sql     สร้าง identity_db, wallet_db, booking_db
 └── backend/
@@ -15,11 +16,57 @@ cosync/
     └── identity-service/       สมัคร, OTP, login สมาชิก/พนักงาน, /me
 ```
 
+## ตั้งค่า `.env`
+
+```bash
+cp .env.example .env
+```
+
+แล้วแก้ค่าใน `.env` (ห้าม commit ไฟล์นี้ — อยู่ใน `.gitignore` แล้ว)
+
+| ตัวแปร | ใช้ที่ | วิธีได้ค่า |
+|---|---|---|
+| `JWT_SECRET` | gateway, identity | `openssl rand -hex 32` |
+| `INTERNAL_API_TOKEN` | identity → wallet (`/internal/**`), Bruno | `openssl rand -hex 32` |
+| `PAYMENT_PROVIDER` | wallet | `omise` (ทีมใช้ตัวนี้) หรือ `mock` (ไม่ต้องมีเน็ต) |
+| `OMISE_SECRET_KEY` | wallet ตอน `PAYMENT_PROVIDER=omise` | ดูหัวข้อถัดไป ต้องขึ้นต้น `skey_test_` |
+| `PAYMENT_WEBHOOK_SECRET` | wallet (`/webhooks/payment`), Bruno | `openssl rand -hex 32` |
+| `PROMPTPAY_ID` | wallet ตอน `PAYMENT_PROVIDER=mock` | เบอร์ PromptPay อะไรก็ได้ |
+
+### ตั้งค่า Omise test mode
+
+ระบบเติมเงินใช้ [Omise](https://www.omise.co) โหมด **Test** สร้าง QR PromptPay และเช็กว่าจ่ายแล้วหรือยัง **ไม่มีเงินจริงเกี่ยวข้อง**
+
+1. สมัครบัญชีที่ <https://dashboard.omise.co/signup> (ใช้โหมด Test ได้ทันทีโดยไม่ต้องยืนยันธุรกิจ)
+2. เข้า Dashboard แล้วดูว่าสวิตช์มุมขวาบนเป็น **Test** ไม่ใช่ Live
+3. เมนู **Keys** → คัดลอก **Secret key** ที่ขึ้นต้นด้วย `skey_test_` มาใส่ `OMISE_SECRET_KEY` ใน `.env`
+4. ตั้ง `PAYMENT_PROVIDER=omise`
+
+> ⚠️ ใช้ test key เท่านั้น ห้ามใส่ live key (`skey_...` ที่ไม่มี `_test_`) — wallet จะไม่ยอม start
+> ⚠️ ห้ามส่ง key ในที่สาธารณะหรือ commit ลง git แชร์ในทีมผ่านแชทส่วนตัวเท่านั้น
+> ใช้ key ร่วมกันได้ ทุกคนจะเห็น charge ของกันและกันใน dashboard เดียวกัน (ดูเลข `chrg_test_...` ให้ตรง)
+
+#### ทดสอบการจ่ายเงิน (test mode ไม่มีการสแกนจ่ายจริง)
+
+1. สร้าง topup (`POST /api/topups`) → ได้ `qrImage` เป็น URL ของ Omise
+2. Omise Dashboard (Test) → **Charges** → เลือก charge นั้น → **Actions → Mark as Successful**
+3. ภายใน 15 วินาที wallet จะไปถาม Omise เอง (`OmiseChargePollJob`) แล้วเปลี่ยน topup เป็น `PAID` + เติม Token
+   หรือเรียก `GET /api/topups/{id}` จะถามทันที
+   ขั้นตอนเดียวกันอยู่ใน Bruno `api-tests/9 Omise (manual)`
+
 ## รัน
 
 ```bash
-cp .env.example .env            # แก้ JWT_SECRET ให้เป็นค่าสุ่มยาว 32 ตัวขึ้นไป
 docker compose up --build
+```
+
+ถ้ารัน service ทีละตัวด้วย Maven (ตอน dev) ต้องโหลด `.env` เข้า shell ก่อนทุกครั้ง ไม่งั้นค่าจะไม่เข้า
+(เช่น wallet จะรันเป็น `mock` ทั้งที่ตั้ง `omise` ไว้)
+
+```bash
+cd backend/wallet-service
+set -a; source ../../.env; set +a
+./mvnw spring-boot:run
 ```
 
 | อะไร | URL |

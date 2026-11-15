@@ -1,0 +1,26 @@
+meta {
+  name: 06 Login member again
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/auth/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{memberEmail}}",
+    "password": "{{memberPassword}}"
+  }
+}
+
+assert {
+  res.status: eq 200
+}
+
+docs {
+  สลับกลับเป็นสมาชิก เพื่อเช็กยอดใน 08 และ 11
+}

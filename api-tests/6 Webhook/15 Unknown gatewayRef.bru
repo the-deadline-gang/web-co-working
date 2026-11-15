@@ -1,7 +1,7 @@
 meta {
-  name: 08 Wrong signature
+  name: 15 Unknown gatewayRef
   type: http
-  seq: 8
+  seq: 15
 }
 
 post {
@@ -20,8 +20,7 @@ body:text {
 }
 
 assert {
-  res.status: eq 401
-  res.body.code: eq INVALID_SIGNATURE
+  res.status: eq 200
 }
 
 script:pre-request {
@@ -31,6 +30,10 @@ script:pre-request {
     bru.setVar("webhookSignature", CryptoJS.HmacSHA256(body, secret).toString());
   }
 
-  const body = JSON.stringify({ eventId: "evt_fake", gatewayRef: "x", status: "successful", amountThb: 500 });
-  signAndSet(body, "wrong-secret");
+  const body = JSON.stringify({ eventId: `evt_unknown_${Date.now()}`, gatewayRef: "mock_does_not_exist", status: "successful", amountThb: 500 });
+  signAndSet(body, bru.getProcessEnv("PAYMENT_WEBHOOK_SECRET"));
+}
+
+docs {
+  ไม่รู้จัก gatewayRef ตอบ 200 (Gateway จะได้ไม่ยิงซ้ำ) แล้ว log WARN ไว้
 }
