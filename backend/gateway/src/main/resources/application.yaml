@@ -1,6 +1,10 @@
 spring:
   application:
     name: gateway
+  config:
+    import:
+      - optional:file:../../.env[.properties]   
+      - optional:file:.env[.properties]
   cloud:
     gateway:
       server:
