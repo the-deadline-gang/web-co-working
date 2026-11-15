@@ -36,7 +36,7 @@ public class WalletClient {
                 .build();
     }
 
-    /** สร้าง wallet ให้ user (เรียกซ้ำได้) ไม่สำเร็จด้วยเหตุใดก็ตาม → WalletUnavailableException */
+    /** สร้าง wallet ให้ user (เรียกซ้ำได้) ไม่สำเร็จด้วยเหตุใดก็ตาม = WalletUnavailableException */
     public void createWallet(Long userId) {
         try {
             wallet.post().uri("/internal/wallets")

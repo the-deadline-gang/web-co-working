@@ -29,14 +29,14 @@ public class EmployeeService {
     private static final String CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
     private static final SecureRandom RANDOM = new SecureRandom();  
     private final PasswordEncoder passwordEncoder;
-    private final MailService otpMailer;
+    private final MailService mailService;
 
 
-    public EmployeeService(EmployeeRepository employeeRepository, RoleRepository roleRepository,PasswordEncoder passwordEncoder,MailService otpMailer) {
+    public EmployeeService(EmployeeRepository employeeRepository, RoleRepository roleRepository,PasswordEncoder passwordEncoder,MailService mailService) {
         this.employeeRepository = employeeRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
-        this.otpMailer = otpMailer;
+        this.mailService = mailService;
     }
     @Transactional
     public EmployeeResponse create(CreateEmployeeRequest request) {
@@ -60,7 +60,7 @@ public class EmployeeService {
             ); 
         employeeRepository.save(employee);
 
-        otpMailer.sendWelcome(email, tempPassword);
+        mailService.sendWelcome(email, tempPassword);
        
         return EmployeeResponse.from(employee);
     }

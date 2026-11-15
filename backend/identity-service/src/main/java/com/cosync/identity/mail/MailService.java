@@ -27,7 +27,6 @@ public class MailService {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom("no-reply@cosync.local");
         message.setTo(to);
-        message.setSubject("Welcome to CO-SYNC");
         message.setSubject("บัญชีพนักงาน CO-SYNC ของคุณ");
         message.setText("""
                 ยินดีต้อนรับสู่ CO-SYNC
