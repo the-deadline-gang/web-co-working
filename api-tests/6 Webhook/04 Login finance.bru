@@ -1,0 +1,27 @@
+meta {
+  name: 04 Login finance
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/auth/staff/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{financeEmail}}",
+    "password": "{{financePassword}}"
+  }
+}
+
+assert {
+  res.status: eq 200
+}
+
+docs {
+  สลับเป็นพนักงาน Finance (มีสิทธิ์ report.view) เพื่อดู gatewayRef ใน 05
+  response ของสมาชิกไม่มี gatewayRef ให้ เพราะเป็นข้อมูลภายใน
+}

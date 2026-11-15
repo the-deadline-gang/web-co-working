@@ -1,0 +1,32 @@
+meta {
+  name: 03 Create topup 500
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/topups
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "amountThb": 500
+  }
+}
+
+assert {
+  res.status: eq 201
+  res.body.status: eq PENDING
+}
+
+script:post-response {
+  bru.setVar("webhookTopupId", res.body.topupId);
+  bru.setVar("webhookTokenAmount", res.body.tokenAmount);
+}
+
+docs {
+  สร้าง topup ใหม่ให้ folder นี้ใช้ทดสอบ webhook (ไม่ต้องไปเอาจาก DB เองแล้ว)
+  เก็บ topupId กับ tokenAmount ไว้ ใช้ใน 05 และ 08
+}

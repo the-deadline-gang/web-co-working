@@ -1,0 +1,27 @@
+meta {
+  name: 08 Balance increased by 500
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/me/wallet
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+}
+
+script:post-response {
+  bru.setVar("balanceAfterPay", res.body.balance);
+}
+
+tests {
+  test("ยอดเพิ่มเท่ากับ tokenAmount ของ topup (500 บาท x rate)", function () {
+    const before = Number(bru.getVar("balanceBefore"));
+    const tokens = Number(bru.getVar("webhookTokenAmount"));
+    expect(Number(res.body.balance)).to.be.closeTo(before + tokens, 0.001);
+  });
+}

@@ -32,7 +32,7 @@ script:post-response {
 
 docs {
   W-07 สร้าง topup แล้วเก็บ topupId ไว้
-  ถ้าจะทดสอบ webhook ต่อ ให้ดู gateway_ref ของ topup นี้จาก DB แล้วใส่ในตัวแปร gatewayRef ของ environment:
-    SELECT gateway_ref FROM wallet_db.topup ORDER BY topup_id DESC LIMIT 1;
-  (เมื่อทำ W-10 /admin/topups แล้ว จะดึงอัตโนมัติได้)
+  qrImage: provider=mock เป็น data:image/png;base64,...  provider=omise เป็น URL https://api.omise.co/...
+  ทดสอบการจ่ายแบบ webhook → 6 Webhook (หา gatewayRef ให้อัตโนมัติ)
+  ทดสอบการจ่ายผ่าน Omise จริง → 9 Omise (manual)
 }

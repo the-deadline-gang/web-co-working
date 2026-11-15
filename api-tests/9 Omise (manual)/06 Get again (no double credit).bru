@@ -1,0 +1,28 @@
+meta {
+  name: 06 Get again (no double credit)
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/me/wallet
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test("ยอดเพิ่มแค่ครั้งเดียว ถึงจะ poll ซ้ำหลายรอบ", function () {
+    const before = Number(bru.getVar("omiseBalanceBefore"));
+    const tokens = Number(bru.getVar("omiseTokenAmount"));
+    expect(Number(res.body.balance)).to.be.closeTo(before + tokens, 0.001);
+  });
+}
+
+docs {
+  ยิง 05 ซ้ำกี่ครั้งก็ได้ก่อนมา request นี้ ยอดต้องเพิ่มแค่ครั้งเดียว
+  ใน DB จะมีแถว payment_event "poll:chrg_test_...:successful" แค่แถวเดียว
+}

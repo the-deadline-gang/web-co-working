@@ -1,0 +1,44 @@
+meta {
+  name: 05 Find gatewayRef (finance)
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/admin/topups?status=PENDING&from={{todayTh}}&to={{todayTh}}&size=50
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+}
+
+script:pre-request {
+  // วันที่ "วันนี้" ตามเวลาไทย (UTC+7) รูปแบบ yyyy-MM-dd
+  const todayTh = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  bru.setVar("todayTh", todayTh);
+}
+
+script:post-response {
+  const topupId = Number(bru.getVar("webhookTopupId"));
+  const row = (res.body.items || []).find(t => t.topupId === topupId);
+  if (row) {
+    bru.setEnvVar("gatewayRef", row.gatewayRef);
+  }
+}
+
+tests {
+  test("เจอ gatewayRef ของ topup ที่สร้างใน 03", function () {
+    const topupId = Number(bru.getVar("webhookTopupId"));
+    const row = (res.body.items || []).find(t => t.topupId === topupId);
+    expect(row, "ไม่พบ topup " + topupId + " ใน /admin/topups").to.exist;
+    expect(row.gatewayRef).to.be.a("string").and.not.empty;
+  });
+}
+
+docs {
+  ดึง gatewayRef ของ topup ที่เพิ่งสร้างจาก /admin/topups แล้วใส่ตัวแปร gatewayRef ให้ request ถัดไปใช้
+  provider=mock จะได้ mock_..., provider=omise จะได้ chrg_test_...
+  (ตั้งค่าใน environment แบบชั่วคราว ไม่เขียนลงไฟล์ local.bru)
+}

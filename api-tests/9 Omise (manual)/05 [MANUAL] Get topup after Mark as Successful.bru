@@ -1,0 +1,35 @@
+meta {
+  name: 05 [MANUAL] Get topup after Mark as Successful
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/topups/{{omiseTopupId}}
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq PAID
+  res.body.paidAt: isString
+  res.body.qrImage: isNull
+}
+
+tests {
+  test("balanceAfter = ยอดก่อนเติม + tokenAmount", function () {
+    const before = Number(bru.getVar("omiseBalanceBefore"));
+    const tokens = Number(bru.getVar("omiseTokenAmount"));
+    expect(Number(res.body.balanceAfter)).to.be.closeTo(before + tokens, 0.001);
+  });
+}
+
+docs {
+  ✋ ก่อนกด Send ต้องทำเอง:
+  1. เปิด https://dashboard.omise.co → สลับเป็นโหมด Test (มุมขวาบน)
+  2. เมนู Charges → เลือก charge 500.00 THB ล่าสุด (สถานะ Pending)
+  3. Actions → Mark as Successful
+  แล้วค่อยกด Send ที่นี่ → GET นี้จะไปถาม Omise เอง แล้วเปลี่ยนเป็น PAID ทันที
+  (ถ้าไม่ยิง GET ภายใน 15 วิ OmiseChargePollJob ก็จะเปลี่ยนให้เองอยู่ดี)
+}

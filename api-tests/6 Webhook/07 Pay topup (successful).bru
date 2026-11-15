@@ -1,7 +1,7 @@
 meta {
-  name: 06 New event same topup
+  name: 07 Pay topup (successful)
   type: http
-  seq: 6
+  seq: 7
 }
 
 post {
@@ -30,15 +30,20 @@ script:pre-request {
     bru.setVar("webhookSignature", CryptoJS.HmacSHA256(body, secret).toString());
   }
 
+  const eventId = `evt_bruno_${Date.now()}`;
+  bru.setVar("eventId", eventId);
   const body = JSON.stringify({
-    eventId: `evt_bruno_other_${Date.now()}`,
+    eventId,
     gatewayRef: bru.getEnvVar("gatewayRef"),
     status: "successful",
-    amountThb: 500
+    amountThb: 500,
+    paidAt: new Date().toISOString()
   });
   signAndSet(body, bru.getProcessEnv("PAYMENT_WEBHOOK_SECRET"));
 }
 
 docs {
-  event ใหม่แต่ topup นี้ PAID แล้ว canBePaid() เป็น false ต้องไม่เติมซ้ำ
+  W-08 จำลอง Payment Gateway แจ้งว่า topup ที่สร้างใน 03 จ่ายแล้ว
+  gatewayRef ถูกตั้งให้อัตโนมัติใน 05 ลายเซ็นคำนวณด้วย PAYMENT_WEBHOOK_SECRET จาก api-tests/.env
+  ใช้ได้ทั้ง provider=mock และ omise (endpoint นี้ไม่สนว่า charge มาจากไหน)
 }

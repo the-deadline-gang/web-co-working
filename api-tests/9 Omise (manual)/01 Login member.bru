@@ -1,0 +1,27 @@
+meta {
+  name: 01 Login member
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/auth/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{memberEmail}}",
+    "password": "{{memberPassword}}"
+  }
+}
+
+assert {
+  res.status: eq 200
+}
+
+docs {
+  ใช้กับ wallet ที่รันด้วย PAYMENT_PROVIDER=omise เท่านั้น
+  folder นี้มีขั้นที่ต้องไปกดใน Omise Dashboard เอง จึงรันด้วย Runner ทั้งโฟลเดอร์ไม่ได้ ให้กดทีละ request
+}

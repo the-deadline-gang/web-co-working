@@ -16,3 +16,9 @@ assert {
   res.body.status: eq PENDING
   res.body.qrImage: isString
 }
+
+docs {
+  ยิงต่อจาก 03 ทันทีต้องได้ PENDING
+  ถ้าไปกด Mark as Successful ใน Omise Dashboard ก่อน จะได้ PAID แทน (ไม่ใช่ bug)
+  เคสหลังจ่ายแล้วอยู่ใน 9 Omise (manual)
+}

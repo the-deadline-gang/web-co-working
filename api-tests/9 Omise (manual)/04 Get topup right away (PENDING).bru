@@ -1,0 +1,21 @@
+meta {
+  name: 04 Get topup right away (PENDING)
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/topups/{{omiseTopupId}}
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq PENDING
+  res.body.qrImage: startsWith https://
+}
+
+docs {
+  ยังไม่ได้กดจ่าย → ระบบไปถาม Omise แล้วได้ pending → ยังเป็น PENDING
+}
