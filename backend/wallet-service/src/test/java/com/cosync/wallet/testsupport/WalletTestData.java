@@ -54,8 +54,17 @@ public final class WalletTestData {
         return topup;
     }
 
+    /**
+     * พา topup ไปอยู่สถานะที่ต้องการผ่าน method จริงของ entity (ไม่แก้ field ตรงๆ)
+     * จะได้สถานะที่เกิดขึ้นได้จริงเท่านั้น เช่น PAID ต้องมี paidAt + transaction และยอด wallet เพิ่มแล้ว
+     */
     public static Topup withStatus(Topup topup, TopupStatus status) {
-        ReflectionTestUtils.setField(topup, "status", status);
+        switch (status) {
+            case PENDING -> { }
+            case PAID -> topup.markPaid(NOW);
+            case EXPIRED -> topup.markExpired();
+            case FAILED -> topup.markFailed();
+        }
         return topup;
     }
 

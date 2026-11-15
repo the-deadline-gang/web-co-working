@@ -49,5 +49,10 @@ class WalletSettingTest {
                 () -> s.update(new BigDecimal("2"), 600, 500, 10, "STF-005"));
         assertEquals(50, s.getMinThb());
         assertEquals("STF-004", s.getUpdatedBy());
+
+        s.update(new BigDecimal("1.0000"), 500, 500, 15, "STF-006");      // min == max ตั้งได้
+        assertEquals(500, s.getMinThb());
+        assertTrue(s.allowsAmount(500));
+        assertFalse(s.allowsAmount(499));
     }
 }

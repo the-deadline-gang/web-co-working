@@ -70,6 +70,10 @@ class WebhookControllerTest {
         mockMvc.perform(post("/webhooks/payment").header("X-Signature", "deadbeef")
                         .contentType(MediaType.APPLICATION_JSON).content(BODY))
                 .andExpect(status().isUnauthorized());
+        // ไม่มีลายเซ็น + JSON พัง → ต้อง 401 (ตรวจลายเซ็นก่อน) ไม่ใช่ 400 ที่บอกว่า JSON พังตรงไหน
+        mockMvc.perform(post("/webhooks/payment").contentType(MediaType.APPLICATION_JSON).content("not-json"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_SIGNATURE"));
 
         verifyNoInteractions(paymentWebhookService);
     }

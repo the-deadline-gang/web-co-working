@@ -35,6 +35,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -125,14 +126,14 @@ class TopupServiceTest {
         }
 
         @Test
-        @DisplayName("TC-TOP-03 rate ไม่ลงตัว → Token ปัดลง 2 ตำแหน่ง (101 × 1.2345 = 124.68)")
+        @DisplayName("TC-TOP-03 rate ไม่ลงตัว → Token ปัดลง 2 ตำแหน่ง (101 × 0.9999 = 100.9899 → 100.98 ไม่ใช่ 100.99)")
         void create_roundsTokensDown() {
-            when(walletSettingRepository.findById(1)).thenReturn(Optional.of(setting("1.2345", 100, 10000, 15)));
+            when(walletSettingRepository.findById(1)).thenReturn(Optional.of(setting("0.9999", 100, 10000, 15)));
             when(walletRepository.findByUserId(4L)).thenReturn(Optional.of(wallet(1L, 4L, "0.00")));
             when(paymentGateway.createPayment(eq(101), any(Instant.class))).thenReturn(new CreatedPayment("mock_x", "qr"));
             saveAssignsId(8L);
 
-            assertEquals(new BigDecimal("124.68"), topupService.create(4L, new CreateTopupRequest(101, null)).tokenAmount());
+            assertEquals(new BigDecimal("100.98"), topupService.create(4L, new CreateTopupRequest(101, null)).tokenAmount());
         }
 
         @Test
@@ -265,6 +266,8 @@ class TopupServiceTest {
             assertEquals(Instant.parse("2026-10-31T17:00:00Z"), start.getValue());
             assertEquals(Instant.parse("2026-11-30T17:00:00Z"), end.getValue());
             assertEquals(100, pageable.getValue().getPageSize());
+            assertEquals(Sort.Direction.DESC, pageable.getValue().getSort().getOrderFor("createdAt").getDirection(),
+                    "รายการใหม่สุดต้องมาก่อน");
 
             AdminTopupResponse row = r.items().get(0);
             assertEquals("U-000004", row.userDisplayId());
