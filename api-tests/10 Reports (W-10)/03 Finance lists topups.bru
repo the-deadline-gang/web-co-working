@@ -1,0 +1,30 @@
+meta {
+  name: 03 Finance lists topups
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/admin/topups?from={{reportFrom}}&to={{reportTo}}&size=5
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.items: isArray
+  res.body.size: eq 5
+}
+
+tests {
+  test("เรียงใหม่สุดก่อน และมีรหัสผู้ใช้กับ gatewayRef", function () {
+    const items = res.body.items;
+    for (let i = 1; i < items.length; i++) {
+      expect(items[i - 1].topupId).to.be.above(items[i].topupId);
+    }
+    if (items.length > 0) {
+      expect(items[0].userDisplayId).to.match(/^U-\d{6}$/);
+      expect(items[0].gatewayRef).to.be.a("string");
+    }
+  });
+}

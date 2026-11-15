@@ -1,0 +1,19 @@
+meta {
+  name: 10 Revenue without cookie
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/admin/reports/revenue?from={{reportFrom}}&to={{reportTo}}
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 401
+}
+
+docs {
+  ไม่มี cookie → gateway ตอบ 401 ก่อนถึง wallet (ต่างจาก 403 ที่ login แล้วแต่ไม่มีสิทธิ์)
+}

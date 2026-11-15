@@ -1,0 +1,35 @@
+meta {
+  name: 02 Finance views revenue report
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/admin/reports/revenue?from={{reportFrom}}&to={{reportTo}}
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.from: eq {{reportFrom}}
+  res.body.to: eq {{reportTo}}
+  res.body.days: isArray
+}
+
+tests {
+  test("มีครบทุกวันในช่วง (วันที่ไม่มีรายการก็ต้องมีแถว)", function () {
+    const from = new Date(bru.getVar("reportFrom"));
+    const to = new Date(bru.getVar("reportTo"));
+    const expectedDays = Math.round((to - from) / 86400000) + 1;
+    expect(res.body.days.length).to.equal(expectedDays);
+  });
+
+  test("ทุกช่องเงินไม่ติดลบ (เงินออกถูกกลับเครื่องหมายแล้ว)", function () {
+    for (const d of res.body.days) {
+      for (const k of ["topup", "booking", "refund", "loanFee", "depositKept"]) {
+        expect(Number(d[k]), d.date + " " + k).to.be.at.least(0);
+      }
+    }
+  });
+}

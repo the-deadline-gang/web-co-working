@@ -1,0 +1,19 @@
+meta {
+  name: 09 Logout
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/auth/logout
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  logout ก่อน แล้ว 10 จะยิงโดยไม่มี cookie
+}

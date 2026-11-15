@@ -1,0 +1,16 @@
+meta {
+  name: 06 Admin cannot list topups
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/admin/topups?from={{reportFrom}}&to={{reportTo}}
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 403
+  res.body.code: eq FORBIDDEN
+}

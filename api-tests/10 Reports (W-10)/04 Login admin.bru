@@ -1,0 +1,26 @@
+meta {
+  name: 04 Login admin
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/auth/staff/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{adminEmail}}",
+    "password": "{{adminPassword}}"
+  }
+}
+
+assert {
+  res.status: eq 200
+}
+
+docs {
+  Admin มีแค่ role.manage, employee.manage ไม่มี report.view
+}
