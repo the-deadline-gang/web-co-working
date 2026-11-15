@@ -1,6 +1,10 @@
 spring:
   application:
     name: identity-service
+  config:
+    import:
+      - optional:file:../../.env[.properties]   
+      - optional:file:.env[.properties]
   datasource:
     url: jdbc:mysql://localhost:3307/identity_db?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
     username: cosync
@@ -19,6 +23,7 @@ spring:
 
 server:
   port: 8081
+  address: 127.0.0.1
 
 app:
   otp:
