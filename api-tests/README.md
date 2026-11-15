@@ -39,7 +39,7 @@
 ## ถ้าผลไม่ตรง
 | อาการ | สาเหตุ |
 |---|---|
-| 9/03 `qrImage` เป็น `data:image/png;base64,...` | wallet ยังรันเป็น mock — เปิดใหม่หลัง `set -a; source ../../.env; set +a` |
+| 9/03 `qrImage` เป็น `data:image/png;base64,...` | wallet ยังรันเป็น mock — เช็ก `PAYMENT_PROVIDER=omise` ใน `.env` แล้ว restart wallet (ถ้ายังไม่เปลี่ยน ให้เปิด terminal ใหม่ เพราะค่าที่เคย export ไว้จะชนะไฟล์) |
 | 9/05 ยัง PENDING | ยังไม่ได้กด Mark as Successful หรือกดผิด charge หรือ dashboard อยู่โหมด Live |
 | 6/05 ไม่พบ topup | Finance login ไม่ผ่าน (04) — เช็ก `financeEmail` ใน environment และ `FINANCE_PASSWORD` ใน `api-tests/.env` |
 | 5/04 ได้ PAID | ไปกด Mark as Successful ก่อนยิง — ปกติ ให้ยิงต่อจาก 03 ทันที |

@@ -31,6 +31,6 @@ script:post-response {
 docs {
   qrImage ต้องเป็น URL ของ Omise (https://api.omise.co/...)
   ถ้าได้ data:image/png;base64,... แปลว่า wallet ยังรันเป็น mock อยู่
-  → ปิด wallet แล้วเปิดใหม่หลัง `set -a; source ../../.env; set +a` (ดู README)
+  → เช็ก PAYMENT_PROVIDER=omise ใน .env แล้ว restart wallet (ถ้ายังไม่เปลี่ยนให้เปิด terminal ใหม่ ดู README)
   เปิด URL ใน qrImage ดูได้ จะเห็น QR PromptPay ที่ Omise ออกให้
 }

@@ -1,22 +1,31 @@
 openapi: 3.0.3
 info:
   title: CO-SYNC Wallet API
-  version: 0.2.0
+  version: 0.3.0
   description: |
     สัญญา API ของ wallet-service (Sprint 2) อ้างอิงกฎ BR-01 ถึง BR-07 และ flow F3 ในเอกสาร System Flow v2
 
     **ข้อตกลง**
     - หน่วยเงินทุกช่องเป็น Token (number ทศนิยม 2 ตำแหน่ง) ยกเว้น `amountThb`
     - `x-permission` = permission code ที่พนักงานต้องมี ถ้าไม่ระบุแปลว่าเป็น endpoint ของสมาชิก
-    - path ที่ขึ้นต้นด้วย `/internal` ให้ service อื่นเรียกภายใน docker network เท่านั้น Gateway ไม่เปิดให้ภายนอก
+    - path ที่ขึ้นต้นด้วย `/internal` ให้ service อื่นเรียกภายในเท่านั้น Gateway ไม่เปิดให้ภายนอก
+      (ตอน dev wallet รับเฉพาะ request จากเครื่องตัวเอง `server.address: 127.0.0.1`)
     - endpoint ภายในที่เปลี่ยนยอดเงินต้องส่ง header `Idempotency-Key` เสมอ
     - endpoint `/internal/**` ทุกตัวต้องส่ง header `X-Internal-Token` (= INTERNAL_API_TOKEN ใน .env) ไม่ตรงได้ 401
       Gateway ไม่ route `/internal/**` และลบ header นี้ทิ้งจาก request ภายนอก
+
+    **การยืนยันว่าจ่ายเงินแล้ว (topup PENDING → PAID)** มี 2 ทาง ทั้งสองทางผ่านตรรกะเดียวกัน
+    (กันซ้ำด้วย eventId, ล็อกแถว, เช็กยอดตรงกับ topup) เติมเงินครั้งเดียวเสมอ
+    1. **Polling** (`app.payment.provider = omise`) wallet ถาม Omise `GET /charges/{id}` เอง
+       - ทุกครั้งที่สมาชิกเรียก `GET /topups/{topupId}` และ topup ยัง PENDING/EXPIRED
+       - และ job ทุก 15 วินาที สำหรับ topup PENDING/EXPIRED ที่สร้างภายใน 2 ชั่วโมงล่าสุด
+       - eventId ที่บันทึก = `poll:{gatewayRef}:{status}`
+    2. **Webhook** `POST /webhooks/payment` รูปแบบของเราเอง เซ็นด้วย HMAC (ใช้กับ provider = mock และการทดสอบใน Bruno)
 servers:
   - url: http://localhost:8080/api
     description: ผ่าน Gateway (frontend)
-  - url: http://wallet-service:8082
-    description: ภายใน docker network (service อื่นเรียก /internal)
+  - url: http://localhost:8082
+    description: เรียกตรง wallet-service (service อื่นเรียก /internal) ตอน deploy ด้วย Docker ใช้ http://wallet-service:8082
 
 tags:
   - name: wallet
@@ -127,6 +136,10 @@ paths:
     get:
       tags: [topup]
       summary: สถานะรายการเติมเงิน (หน้ารอผลใช้ poll)
+      description: |
+        ก่อนตอบ ถ้า topup ยัง PENDING หรือ EXPIRED ระบบจะถาม Payment Gateway ว่าจ่ายแล้วหรือยัง (provider = omise)
+        ถ้าจ่ายแล้วจะบันทึกผลแล้วตอบ PAID ทันทีในครั้งนี้ ถามไม่สำเร็จ (Omise ล่ม) ไม่ทำให้ endpoint นี้ error แค่ตอบสถานะเดิม
+        ถ้า PENDING เลยเวลา `expiresAt` แล้ว จะเปลี่ยนเป็น EXPIRED ให้ทันที
       parameters:
         - $ref: '#/components/parameters/TopupId'
       responses:
@@ -148,18 +161,20 @@ paths:
       tags: [webhook]
       summary: Payment Gateway แจ้งผลการชำระ (F3 ขั้น 4, BR-04, BR-05)
       description: |
-        ไม่ต้องมี JWT แต่ต้องตรวจลายเซ็นใน header ทุกครั้ง
-        ถ้าได้รับ event ของ `gatewayRef` เดิมซ้ำ ให้ตอบ 200 โดยไม่เติมเงินซ้ำ
-        รูปแบบ body ขึ้นกับ `app.payment.provider`
-        - `mock`: body ตาม `PaymentWebhook` ด้านล่าง ตรวจ HMAC-SHA256 ของ raw body ใน `X-Signature`
-        - `omise`: body เป็น event ของ Omise (`charge.complete`) ไม่มี `X-Signature` ระบบจะไม่เชื่อ body
-          แต่เรียก `GET https://api.omise.co/charges/{id}` ถามสถานะจริงก่อนเติมเงิน
+        ไม่ต้องมี JWT แต่ต้องมีลายเซ็นใน `X-Signature` ทุกครั้ง (ตรวจลายเซ็นก่อนอ่าน body)
+        body เป็นรูปแบบของเราเอง (`PaymentWebhook`) ใช้ได้ทั้ง provider = mock และ omise
+        ตอนนี้ใช้กับ mock และการทดสอบใน Bruno ส่วน provider = omise ยืนยันผลด้วย polling (ดูหัวข้อด้านบน)
+        ยังไม่ได้รับ webhook จริงของ Omise (`charge.complete`) ซึ่งต้องมี public URL
+        - eventId เดิมซ้ำ → 200 ไม่เติมเงินซ้ำ
+        - topup PAID/FAILED แล้ว หรือไม่รู้จัก `gatewayRef` → 200 ไม่ทำอะไร (log ไว้)
+        - ยอด `amountThb` ไม่ตรงกับ topup → 200 ไม่เปลี่ยนสถานะ (ทั้ง successful และ failed)
+        - topup EXPIRED แล้วแต่จ่ายสำเร็จ → ยังเติมเงินให้ (Q1 = A)
       security: []
       parameters:
         - name: X-Signature
           in: header
-          required: false
-          description: HMAC-SHA256 (hex) ของ raw body ด้วย PAYMENT_WEBHOOK_SECRET บังคับเมื่อ provider = mock
+          required: true
+          description: HMAC-SHA256 (hex ตัวเล็กหรือใหญ่ก็ได้) ของ raw body ด้วย PAYMENT_WEBHOOK_SECRET ไม่ส่งหรือไม่ตรงได้ 401
           schema: { type: string }
       requestBody:
         required: true
@@ -168,6 +183,11 @@ paths:
             schema: { $ref: '#/components/schemas/PaymentWebhook' }
       responses:
         '200': { description: รับแล้ว (รวมถึงกรณี event ซ้ำ) }
+        '400':
+          description: ลายเซ็นถูกแต่ body อ่านไม่ได้ ขาดช่อง หรือ status ไม่ใช่ successful/failed (code = VALIDATION_FAILED)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '401':
           description: ลายเซ็นไม่ถูกต้อง (code = INVALID_SIGNATURE) ยอดไม่เปลี่ยน
           content:
