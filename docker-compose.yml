@@ -17,6 +17,13 @@ services:
     ports:
       - "1025:1025"     # port ที่ Spring ส่งอีเมลเข้ามา
       - "8025:8025"     # หน้าเว็บสำหรับดูอีเมล
-
+  adminer:                      # หน้าเว็บดู/แก้ข้อมูลใน MySQL
+    image: adminer
+    ports:
+      - "127.0.0.1:8090:8080"   # เปิดเฉพาะเครื่องตัวเอง (8080 gateway ใช้อยู่แล้ว)
+    environment:
+      ADMINER_DEFAULT_SERVER: mysql
+    depends_on:
+      - mysql
 volumes:
   mysqldata:
