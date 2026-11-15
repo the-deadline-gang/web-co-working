@@ -77,10 +77,11 @@ class TopupTest {
     void markPaid_rejected(TopupStatus status) {
         Wallet w = wallet(1L, 4L, "0.00");
         Topup t = withStatus(topup(7L, w, 500, NOW), status);
+        BigDecimal before = w.getBalance();               // PAID = 500.00 (จ่ายไปแล้วครั้งหนึ่ง), FAILED = 0.00
 
         assertFalse(t.canBePaid());
         assertThrows(IllegalStateException.class, () -> t.markPaid(NOW));
-        assertEquals(new BigDecimal("0.00"), w.getBalance());
+        assertEquals(before, w.getBalance());             // จ่ายซ้ำไม่ได้ ยอดไม่เพิ่มอีก
     }
 
     @Test
@@ -99,5 +100,16 @@ class TopupTest {
         Topup c = withStatus(topup(3L, wallet(1L, 4L, "0.00"), 500, NOW), TopupStatus.PAID);
         c.markExpired();
         assertEquals(TopupStatus.PAID, c.getStatus());
+    }
+
+    @Test
+    @DisplayName("TC-TEN-07 isOwnedBy เทียบค่า ไม่ใช่เทียบ object (userId เกิน 127 ที่ Java ไม่ cache)")
+    void isOwnedBy_largeUserId() {
+        Topup t = topup(7L, wallet(1L, 1000L, "0.00"), 500, NOW);
+
+        // Long.valueOf("1000") สร้าง object ใหม่ ถ้าโค้ดใช้ == จะได้ false ทั้งที่เป็นเจ้าของจริง
+        assertTrue(t.isOwnedBy(Long.valueOf("1000")));
+        assertFalse(t.isOwnedBy(Long.valueOf("1001")));
+        assertFalse(t.isOwnedBy(null));
     }
 }

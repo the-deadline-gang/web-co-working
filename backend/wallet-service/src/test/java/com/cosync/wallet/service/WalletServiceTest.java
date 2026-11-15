@@ -176,6 +176,18 @@ class WalletServiceTest {
         }
 
         @Test
+        @DisplayName("TC-SET-04 min เท่ากับ max → ตั้งได้ (เติมได้ยอดเดียว)")
+        void updateSettings_minEqualsMax() {
+            when(walletSettingRepository.findById(1)).thenReturn(Optional.of(setting("1.0000", 100, 10000, 15)));
+
+            WalletSettingsResponse r = walletService.updateSettings(4L,
+                    new WalletSettingRequest(new BigDecimal("1"), 500, 500, 15));
+
+            assertEquals(500, r.minThb());
+            assertEquals(500, r.maxThb());
+        }
+
+        @Test
         @DisplayName("TC-SET-03 min มากกว่า max → 400 ไม่แตะ DB")
         void updateSettings_minGreaterThanMax() {
             assertApiError(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", () -> walletService.updateSettings(4L,

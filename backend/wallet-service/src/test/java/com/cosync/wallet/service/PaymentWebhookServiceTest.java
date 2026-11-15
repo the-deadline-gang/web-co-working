@@ -195,6 +195,17 @@ class PaymentWebhookServiceTest {
     }
 
     @Test
+    @DisplayName("TC-WH-16 status failed แต่ยอดไม่ตรงกับ topup → ไม่เชื่อ สถานะคง PENDING (กันคนปลอมทำให้ topup คนอื่น FAILED)")
+    void failedWithWrongAmount_ignored() {
+        Topup t = pendingTopup(wallet(1L, 4L, "0.00"));
+
+        service.handle(new PaymentWebhook("evt_1", "mock_ref_7", "failed", 1, null), RAW);
+
+        assertEquals(TopupStatus.PENDING, t.getStatus());
+        verifyNoInteractions(walletRepository, walletTransactionRepository);
+    }
+
+    @Test
     @DisplayName("TC-WH-10 status failed → topup FAILED ไม่เติมเงิน")
     void failedPayment_marksFailed() {
         Wallet w = wallet(1L, 4L, "0.00");
