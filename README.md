@@ -1,20 +1,25 @@
-# CO-SYNC — ตัวอย่าง Sprint 0 (Backend)
+# CO-SYNC — Backend
 
-ตัวอย่างงาน Sprint 0 ฝั่ง backend ตามแผนทาง B ประกอบด้วย OpenAPI spec, Gateway, Identity service, Docker Compose, DB และ Auth/JWT
+ระบบจองพื้นที่ co-working ที่จ่ายด้วย Wallet/Token แบ่งเป็น microservice หลัง API Gateway ตัวเดียว
 
 ```
 cosync/
-├── docker-compose.yml          รันทุกอย่างด้วยคำสั่งเดียว
+├── docker-compose.yml          MySQL 8.4 + MailHog (service ของเรารันด้วย Maven)
 ├── .env.example                ค่า secret และการตั้งค่า payment (คัดลอกเป็น .env)
+├── infra/mysql/init.sql        สร้าง identity_db, wallet_db, booking_db
+├── docs/openapi/               สัญญา API ที่ frontend กับ backend ตกลงกัน (identity, wallet, booking)
 ├── api-tests/                  Bruno collection (ดู api-tests/README.md)
-├── docs/openapi/identity.yaml  สัญญา API ที่ frontend กับ backend ตกลงกัน
-├── infra/postgres/init.sql     สร้าง identity_db, wallet_db, booking_db
-└── backend/
-    ├── pom.xml                 Maven parent (Spring Boot 3.3, Java 21)
-    ├── Dockerfile              ใช้ build ได้ทุก service
-    ├── gateway/                Spring Cloud Gateway + ตรวจ JWT
-    └── identity-service/       สมัคร, OTP, login สมาชิก/พนักงาน, /me
+├── frontend/                   Next.js
+└── backend/                    Spring Boot 4.1.2, Java 25 (แต่ละ service มี mvnw ของตัวเอง)
+    ├── gateway/        :8080   Spring Cloud Gateway ตรวจ JWT แล้วส่งต่อ (ประตูเดียวที่เปิดให้ข้างนอก)
+    ├── identity-service/ :8081 สมัคร, OTP, login สมาชิก/พนักงาน, role/permission, พนักงาน
+    └── wallet-service/ :8082   กระเป๋าเงิน, เติมเงินผ่าน Omise, ตัด/คืนเงินให้ booking, รายงาน
 ```
+
+## เตรียมเครื่อง
+
+- Java 25, Docker Desktop
+- (ทดสอบ API) [Bruno](https://www.usebruno.com)
 
 ## ตั้งค่า `.env`
 
@@ -32,6 +37,12 @@ cp .env.example .env
 | `OMISE_SECRET_KEY` | wallet ตอน `PAYMENT_PROVIDER=omise` | ดูหัวข้อถัดไป ต้องขึ้นต้น `skey_test_` |
 | `PAYMENT_WEBHOOK_SECRET` | wallet (`/webhooks/payment`), Bruno | `openssl rand -hex 32` |
 | `PROMPTPAY_ID` | wallet ตอน `PAYMENT_PROVIDER=mock` | เบอร์ PromptPay อะไรก็ได้ |
+
+ทุก service อ่าน `.env` เองตอน start (`spring.config.import` ใน `application.yaml`)
+**ไม่ต้อง `source .env` แล้ว** แก้ `.env` แล้วแค่ restart service
+
+> ถ้าเคย `export` หรือ `source .env` ไว้ใน terminal เดิม ค่าใน shell จะ **ชนะ** ค่าในไฟล์
+> แก้ `.env` แล้วค่าไม่เปลี่ยน ให้เปิด terminal ใหม่
 
 ### ตั้งค่า Omise test mode
 
@@ -57,23 +68,41 @@ cp .env.example .env
 ## รัน
 
 ```bash
-docker compose up --build
+# 1. DB + MailHog
+docker compose up -d
+
+# 2. service ละ terminal (ลำดับไม่สำคัญ)
+cd backend/identity-service && ./mvnw spring-boot:run
+cd backend/wallet-service   && ./mvnw spring-boot:run
+cd backend/gateway          && ./mvnw spring-boot:run
+
+# 3. (ถ้าทำ frontend)
+cd frontend && npm install && npm run dev
 ```
 
-ถ้ารัน service ทีละตัวด้วย Maven (ตอน dev) ต้องโหลด `.env` เข้า shell ก่อนทุกครั้ง ไม่งั้นค่าจะไม่เข้า
-(เช่น wallet จะรันเป็น `mock` ทั้งที่ตั้ง `omise` ไว้)
+| อะไร | URL | เข้าจากเครื่องอื่นได้ไหม |
+| --- | --- | --- |
+| **Gateway** (frontend เรียกที่นี่ที่เดียว) | http://localhost:8080/api | ✅ |
+| identity-service | http://localhost:8081 | ❌ เฉพาะเครื่องตัวเอง |
+| wallet-service | http://localhost:8082 | ❌ เฉพาะเครื่องตัวเอง |
+| MailHog (ดู OTP / รหัสพนักงานที่ระบบส่ง) | http://localhost:8025 | |
+| MySQL | `localhost:3307` user `cosync` / `cosync` | |
+
+ดูข้อมูลใน DB:
 
 ```bash
-cd backend/wallet-service
-set -a; source ../../.env; set +a
-./mvnw spring-boot:run
+docker compose exec mysql mysql -ucosync -p --default-character-set=utf8mb4 wallet_db
 ```
 
-| อะไร | URL |
-| --- | --- |
-| Gateway (frontend เรียกที่นี่ที่เดียว) | http://localhost:8080/api |
-| Swagger UI ของ identity-service | http://localhost:8081/swagger-ui.html |
-| MailHog (ดู OTP ที่ระบบส่ง) | http://localhost:8025 |
+## Test
+
+```bash
+cd backend/wallet-service      # หรือ identity-service
+./mvnw test -Dtest='!CosyncApplicationTests' -Dsurefire.failIfNoSpecifiedTests=false
+open target/site/jacoco/index.html      # รายงาน coverage
+```
+
+`CosyncApplicationTests` ต้องต่อ MySQL จริง จึงแยกออกจากชุด unit test
 
 ## ลองยิงด้วย curl (ผ่าน Gateway)
 
@@ -82,7 +111,7 @@ set -a; source ../../.env; set +a
 curl -i -X POST localhost:8080/api/auth/register -H 'Content-Type: application/json' \
   -d '{"firstName":"นันท์นภัส","lastName":"ภาคภูมิ","email":"nan@example.com","phone":"0806062300","password":"P@ssw0rd123","acceptTerms":true}'
 
-# 2. ยืนยัน OTP
+# 2. ยืนยัน OTP (identity จะเรียก wallet สร้างกระเป๋าให้ด้วย)
 curl -i -X POST localhost:8080/api/auth/verify-otp -H 'Content-Type: application/json' \
   -d '{"email":"nan@example.com","otp":"123456"}'
 
@@ -92,6 +121,7 @@ curl -i -c cookies.txt -X POST localhost:8080/api/auth/login -H 'Content-Type: a
 
 # 4. เรียก endpoint ที่ต้อง login
 curl -i -b cookies.txt localhost:8080/api/me
+curl -i -b cookies.txt localhost:8080/api/me/wallet
 
 # 5. ไม่มี cookie -> 401 {"code":"UNAUTHORIZED",...}
 curl -i localhost:8080/api/me
@@ -101,26 +131,36 @@ curl -i -X POST localhost:8080/api/auth/staff/login -H 'Content-Type: applicatio
   -d '{"email":"admin@cosync.local","password":"Admin@1234"}'
 ```
 
-## Auth ทำงานอย่างไร
+`cookies.txt` และ `*.cookies` อยู่ใน `.gitignore` แล้ว (ข้างในมี JWT ห้าม commit)
+
+## Auth และความปลอดภัยทำงานอย่างไร
 
 1. Identity ตรวจรหัสผ่านแล้วออก JWT (HS256) ใส่ใน cookie `access_token` แบบ HttpOnly
 2. ทุก request ผ่าน Gateway ตัว `JwtAuthFilter` จะตรวจ token
-   - ลบ header `X-User-*` ที่ client อาจปลอมมาก่อนทุกครั้ง
-   - path สาธารณะ (สมัคร, login, webhook) ผ่านได้โดยไม่ต้องมี token
+   - ลบ header `X-User-*` และ `X-Internal-Token` ที่ client อาจปลอมมาก่อนทุกครั้ง
+   - path สาธารณะ (สมัคร, login, `/topups/config`, webhook) ผ่านได้โดยไม่ต้องมี token
    - token ถูกต้อง: ใส่ `X-User-Id`, `X-User-Type` (MEMBER/STAFF) และ `X-Permissions` ส่งต่อให้ service
-3. Service ด้านหลังไม่ตรวจ JWT เอง แค่อ่าน header (ดู `MeController`) เพราะเข้าถึงได้จาก Gateway เท่านั้น
-4. Gateway กับ Identity ใช้ `JWT_SECRET` ตัวเดียวกัน
+3. Service ด้านหลังไม่ตรวจ JWT เอง แค่อ่าน header แล้วเช็กสิทธิ์ด้วย annotation
+   `@MemberOnly`, `@StaffOnly`, `@RequirePermission("report.view")` (`PermissionInterceptor`)
+4. **identity และ wallet รับ request เฉพาะจากเครื่องตัวเอง** (`server.address: 127.0.0.1`)
+   คนอื่นใน network เดียวกันยิงตรงเข้า 8081/8082 เพื่อปลอม `X-User-Id` ไม่ได้ ต้องผ่าน Gateway 8080 เท่านั้น
+   ตอน deploy ด้วย Docker ให้ publish แค่ port ของ gateway แทน
+5. service คุยกันเองผ่าน `/internal/**` ซึ่งต้องมี `X-Internal-Token` (= `INTERNAL_API_TOKEN`) และ Gateway ไม่ route path นี้
+6. Gateway กับ Identity ใช้ `JWT_SECRET` ตัวเดียวกัน
 
-## ข้อตกลงที่ตัวอย่างนี้วางไว้ให้ service ถัดไปทำตาม
+## ข้อตกลงของทุก service
 
 - Error ทุกตัวอยู่ในรูป `{ "code", "message", "details"? }` (`common/ErrorResponse`)
-- Schema มาจาก Flyway เท่านั้น (`ddl-auto: validate`) เพิ่มตารางด้วยไฟล์ `V2__...sql`
-- ID ใน DB เป็น `BIGSERIAL` ส่วนรหัสที่แสดงในจอ เช่น `U-000123` สร้างตอนส่งออก
+- Schema มาจาก Flyway เท่านั้น (`ddl-auto: validate`) เพิ่มตารางด้วยไฟล์ `V{n}__...sql` ใหม่ ห้ามแก้ไฟล์เก่า
+- ID ใน DB เป็น `BIGINT AUTO_INCREMENT` ส่วนรหัสที่แสดงในจอ เช่น `U-000123`, `W-000001`, `PAY-20261114-0007` สร้างตอนส่งออก
+- เวลาใน DB เก็บเป็น UTC แปลงเป็นวันไทย (Asia/Bangkok) ตอนออกรายงาน
 - รหัสผ่านและ OTP เก็บเป็น BCrypt hash เท่านั้น
+- endpoint ที่เปลี่ยนยอดเงินต้องมี `Idempotency-Key` ส่งซ้ำได้โดยไม่ตัดเงินซ้ำ
 
-## สิ่งที่ Sprint ถัดไปต้องต่อ
+## สถานะ
 
-- [ ] Sprint 2: `wallet-service` และเปิด route `wallet` ใน gateway และใน `AuthService.verifyOtp` ให้เรียกสร้าง Wallet (ดู TODO)
-- [ ] Sprint 3: `booking-service` และ route `booking`
-- [ ] ขอ OTP ใหม่ (`POST /auth/resend-otp`) ยังไม่ได้ทำ
-- [ ] ตอนขึ้น HTTPS จริง ตั้ง `app.cookie-secure: true`
+- [x] Sprint 0–1: gateway, identity (สมัคร, OTP, ขอ OTP ใหม่, login, role/permission, พนักงาน)
+- [x] Sprint 2: wallet-service (W-03 – W-11) ยอด/ประวัติ, เติมเงินผ่าน Omise + polling, webhook, debit/credit ให้ booking, ค่าตั้ง, รายงานรายได้, unit test ~200 ตัว
+- [ ] Sprint 3: `booking-service` และ route `booking` (เรียก wallet `/internal/wallets/{userId}/debit|credit`)
+- [ ] ตอนขึ้น HTTPS จริง เปลี่ยน cookie เป็น `secure(true)` ใน `JwtService`
+- [ ] ตอน deploy: ย้าย service เข้า Docker แล้ว publish แค่ gateway
