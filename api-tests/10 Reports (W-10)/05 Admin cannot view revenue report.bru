@@ -1,0 +1,16 @@
+meta {
+  name: 05 Admin cannot view revenue report
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/admin/reports/revenue?from={{reportFrom}}&to={{reportTo}}
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 403
+  res.body.code: eq FORBIDDEN
+}

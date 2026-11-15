@@ -1,0 +1,33 @@
+meta {
+  name: 01 Login finance
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/auth/staff/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{financeEmail}}",
+    "password": "{{financePassword}}"
+  }
+}
+
+assert {
+  res.status: eq 200
+}
+
+script:post-response {
+  // ช่วงวันที่ใช้ทั้ง folder: ต้นเดือนนี้ ถึง วันนี้ (เวลาไทย)
+  const todayTh = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  bru.setVar("reportTo", todayTh);
+  bru.setVar("reportFrom", todayTh.slice(0, 8) + "01");
+}
+
+docs {
+  Finance มีสิทธิ์ report.view (ดู migration V3 ของ identity)
+}

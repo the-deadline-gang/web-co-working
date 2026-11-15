@@ -25,9 +25,10 @@
 | 7 Wallet admin | W-06 ค่าตั้ง + สิทธิ์ setting.manage | ✅ | - |
 | 8 Internal | W-03 สร้าง wallet, W-05 debit/credit, ตัดพร้อมกัน | ✅ | - |
 | 9 Omise (manual) | จ่ายผ่าน Omise test mode จริง → polling → PAID | ❌ กดทีละ request | กด Mark as Successful ใน Omise Dashboard ก่อน 05 |
+| 10 Reports (W-10) | รายงานรายได้ + รายการเติมเงิน: Finance เห็น, Admin/สมาชิก 403, ไม่ login 401 | ✅ | - |
 
 ## ลำดับที่แนะนำ
-- 2 → 3 → 4 → 5 → 6 → 7 → 8 รันด้วย Runner ทีละโฟลเดอร์ได้
+- 2 → 3 → 4 → 5 → 6 → 7 → 8 → 10 รันด้วย Runner ทีละโฟลเดอร์ได้
 - **6 Webhook** สร้าง topup เอง (03) แล้วสลับไปเป็น Finance เพื่อหา `gatewayRef` จาก `/admin/topups` (04–05) แล้วสลับกลับเป็นสมาชิก (06) ก่อนยิง webhook
   ใช้ได้ทั้ง provider=mock และ omise
 - **9 Omise (manual)** ใช้ตอน wallet รันด้วย `PAYMENT_PROVIDER=omise` เท่านั้น
