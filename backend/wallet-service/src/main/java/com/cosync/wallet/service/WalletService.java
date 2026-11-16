@@ -29,38 +29,37 @@ import com.cosync.wallet.repository.WalletTransactionRepository;
 
 @Service
 public class WalletService {
-     private final WalletRepository walletRepository;
-     private final WalletTransactionRepository walletTransactionRepository;
-     private final WalletSettingRepository walletSettingRepository;
+    private static final int MAX_PAGE_SIZE = 100;
 
-     private static final int MAX_PAGE_SIZE = 100;
+    private final WalletRepository walletRepository;
+    private final WalletTransactionRepository walletTransactionRepository;
+    private final WalletSettingRepository walletSettingRepository;
 
-     public WalletService(WalletRepository walletRepository, WalletTransactionRepository walletTransactionRepository,WalletSettingRepository walletSettingRepository){
+    public WalletService(WalletRepository walletRepository,
+                         WalletTransactionRepository walletTransactionRepository,
+                         WalletSettingRepository walletSettingRepository) {
         this.walletRepository = walletRepository;
-        this.walletTransactionRepository= walletTransactionRepository ;
-        this.walletSettingRepository =walletSettingRepository;
-     }
-
+        this.walletTransactionRepository = walletTransactionRepository;
+        this.walletSettingRepository = walletSettingRepository;
+    }
 
     /**
      * เป็นการหา wallet ของ user คนนั้น
-     * @param userId id ของ user 
-     * @return ตอนกลับแบบ WalletResponse
+     * @param userId id ของ user
+     * @return ตอบกลับแบบ WalletResponse
      */
     @Transactional(readOnly = true)
     public WalletResponse getByUserId(Long userId) {
-        Wallet wallet = walletRepository.findByUserId(userId)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "WALLET_NOT_FOUND", "ไม่พบกระเป๋าเงิน"));
-        return WalletResponse.from(wallet);
+        return WalletResponse.from(findWallet(userId));
     }
 
     /**
      * เป็นการค้นหาประวัติการเงินของ user คนนั้นโดยที่เวลาคืนจะคืนออกไปเป็นหน้าๆ
      * @param userId id ของ user คนนั้น
-     * @param type ประเภทของประวัติการเติม เช่น TOPUP, BOOKING, REFUND, LOAN_FEE, DEPOSIT_HOLD, DEPOSIT_REFUND
-     * @param page จำนวนหน้า
-     * @param size ขนาดของแต่ะหน้า
-     * @return ส่งกลับไปเป็นแบบ PageResponse 
+     * @param type ประเภทรายการ (null = ทุกประเภท)
+     * @param page หน้าที่เท่าไหร่ (เริ่มที่ 0)
+     * @param size ขนาดของแต่ละหน้า
+     * @return ส่งกลับไปเป็นแบบ PageResponse
      */
     @Transactional(readOnly = true)
     public PageResponse<TransactionResponse> getTransactions(Long userId, TransactionType type, int page, int size) {
@@ -71,69 +70,66 @@ public class WalletService {
             Math.clamp(size, 1, MAX_PAGE_SIZE),
             Sort.by(Sort.Direction.DESC, "createdAt", "id"));     // ใหม่สุดก่อน
 
-        
         Page<WalletTransaction> result = (type == null)
             ? walletTransactionRepository.findByWallet(wallet, pageable)
             : walletTransactionRepository.findByWalletAndType(wallet, type, pageable);
 
-        return  PageResponse.from(result, TransactionResponse::from);
+        return PageResponse.from(result, TransactionResponse::from);
     }
 
-    private Wallet findWallet(Long userId){
-        return walletRepository.findByUserId(userId).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "WALLET_NOT_FOUND", "ไม่พบกระเป๋าเงิน"));
+    private Wallet findWallet(Long userId) {
+        return walletRepository.findByUserId(userId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "WALLET_NOT_FOUND", "ไม่พบกระเป๋าเงิน"));
     }
 
     /**
-     * ดึงการตั้งค่าของ wallet 
+     * ดึงการตั้งค่าของ wallet
      * @return  ส่งกลับแบบ WalletSettingsResponse
      */
-   @Transactional(readOnly = true)
+    @Transactional(readOnly = true)
     public WalletSettingsResponse getSettings() {
-        WalletSetting setting = walletSettingRepository.findById(WalletSetting.SINGLETON_ID).orElseThrow(); 
-        return WalletSettingsResponse.from(setting);                                                        
+        WalletSetting setting = walletSettingRepository.findById(WalletSetting.SINGLETON_ID).orElseThrow();
+        return WalletSettingsResponse.from(setting);
     }
 
     /**
-     * เอาไว้  update การตั้งต่าต่างๆของ wallet
+     * เอาไว้  update การตั้งค่าต่างๆของ wallet
      * @param staffId id ของ staff ที่จะแก้ข้อมูล
-     * @param req   reqest ที่ส่งมาแบบ  WalletSettingRequest
-     * @return ตอนกลับไปแบบ WalletSettingsResponse โดยที่จะบอกว่า setting ใหม่เป็นยังไง
+     * @param req   request ที่ส่งมาแบบ  WalletSettingRequest
+     * @return ตอบกลับไปแบบ WalletSettingsResponse โดยที่จะบอกว่า setting ใหม่เป็นยังไง
      */
     @Transactional
     public WalletSettingsResponse updateSettings(Long staffId, WalletSettingRequest req) {
-     
         if (req.minThb() > req.maxThb()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED",
                     "ยอดเติมขั้นต่ำต้องไม่มากกว่ายอดเติมสูงสุด");
         }
 
-      
         WalletSetting setting = walletSettingRepository.findById(WalletSetting.SINGLETON_ID).orElseThrow();
 
         setting.update(req.rate().setScale(4), req.minThb(), req.maxThb(), req.qrExpireMinutes(),
                 "STF-%03d".formatted(staffId));
         walletSettingRepository.flush();          // ส่ง UPDATE ทันที @UpdateTimestamp จะใส่เวลาใหม่ให้
 
-
-
         return WalletSettingsResponse.from(setting);
     }
+
     /**
      * เป็นการสร้าง wallet ใหม่ถ้ามีแล้วก็จะไม่สร้างใหม่
      * @param userId id ของ user คนนั้น
-     * @return ส่งกลับไปเป็นแบบ  WalletResponse 
+     * @return ส่งกลับไปเป็นแบบ  WalletResponse
      */
     @Transactional
-    public WalletResponse createIfAbsent(Long userId ){
-        Wallet wallet = walletRepository.findByUserId(userId).orElseGet( () -> walletRepository.save(new Wallet(userId) ) );
+    public WalletResponse createIfAbsent(Long userId) {
+        Wallet wallet = walletRepository.findByUserId(userId)
+                .orElseGet(() -> walletRepository.save(new Wallet(userId)));
         return WalletResponse.from(wallet);
     }
 
-
     /**
-     * เอาไว้หักเงิน 
+     * เอาไว้หักเงิน
      * @param userId id ของ user
-     * @param key Idempotency-Key ที่จะเอามาเป็นตัวเช็คว่่าเคยทำรายการนี้ไปรึยังจะไม่ได้ไม่ทำซ้ำ
+     * @param key Idempotency-Key ไว้เช็กว่าเคยทำรายการนี้แล้วหรือยัง จะได้ไม่ทำซ้ำ
      * @param req รายการคำขอในการเปลี่ยนแปลงเงิน
      * @return  ส่งกลับไปเป็น TransactionResponse
      */
@@ -142,12 +138,10 @@ public class WalletService {
         return move(userId, key, req, false);
     }
 
-
-
     /**
-     * เอาไว้เพิ่มเงิน 
+     * เอาไว้คืนเงิน (REFUND, DEPOSIT_REFUND) และห้าม TOPUP
      * @param userId id ของ user
-     * @param key Idempotency-Key ที่จะเอามาเป็นตัวเช็คว่่าเคยทำรายการนี้ไปรึยังจะไม่ได้ไม่ทำซ้ำ
+     * @param key Idempotency-Key ไว้เช็กว่าเคยทำรายการนี้แล้วหรือยัง จะได้ไม่ทำซ้ำ
      * @param req รายการคำขอในการเปลี่ยนแปลงเงิน
      * @return  ส่งกลับไปเป็น TransactionResponse
      */
@@ -156,17 +150,17 @@ public class WalletService {
         return move(userId, key, req, true);
     }
 
-    
     /**
-     * ตัดเงินหรือคืนเงิน โดยที่กระบวนการในนี้จะมีการ lock row ของ user คนนั้นเพื่อเอาค่าไปเข็คและค่่อยทำการหัก
-     * @param userId id ของ user คนนั้น
-     * @param key  Idempotency-Key ที่จะเอามาเป็นตัวเช็คว่่าเคยทำรายการนี้ไปรึยังจะไม่ได้ไม่ทำซ้ำ
-     * @param req รายการคำขอในการเปลี่ยนแปลงเงิน
-     * @param isCredit ส่งมาเป็น boolean ว่าเป็น เงินเข้าหรือเงินออก
-     * @return ส่งกลับไปเป็น TransactionResponse
+     * ตัดเงินหรือคืนเงิน: ล็อกแถว wallet ก่อน แล้วค่อยเช็ก key, เช็กยอด และบันทึก
+     *  ไม่มี @Transactional ของตัวเอง (private + เรียกจากในคลาสเดียวกัน จึงไม่ผ่าน proxy)
+     *  ใช้ transaction ที่ debit() / credit() เปิดไว้ ล็อกจะถือไว้จน commit
+     * @param userId   เจ้าของ wallet
+     * @param key      Idempotency-Key ไว้เช็กว่าเคยทำรายการนี้แล้วหรือยัง จะได้ไม่ทำซ้ำ
+     * @param req      คำขอย้ายเงิน
+     * @param isCredit true = คืนเงิน (เงินเข้า), false = ตัดเงิน (เงินออก)
+     * @return รายการ ledger ที่บันทึก (หรือรายการเดิมถ้าเป็นคำขอซ้ำ)
      */
     private TransactionResponse move(Long userId, String key, MoneyMoveRequest req, boolean isCredit) {
-
         if (key.isBlank() || key.length() > 100) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED",
                     "Idempotency-Key ต้องยาว 1–100 ตัวอักษร");
@@ -188,10 +182,10 @@ public class WalletService {
         // ลายนิ้วมือของคำขอนี้ ไว้เทียบกับคำขอเดิมที่ใช้ key เดียวกัน
         String hash = req.requestHash(userId, isCredit ? "credit" : "debit");
 
-
         // ---------- ขั้น 1: ล็อก wallet ก่อนทำอะไรทั้งนั้น ----------
         Wallet wallet = walletRepository.findByUserIdForUpdate(userId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "WALLET_NOT_FOUND", "ไม่พบกระเป๋าเงิน"));
+
         // ---------- ขั้น 2: key นี้เคยใช้แล้วหรือยัง ----------
         Optional<WalletTransaction> existing = walletTransactionRepository.findByIdempotencyKey(key);
         if (existing.isPresent()) {
@@ -224,6 +218,4 @@ public class WalletService {
 
         return TransactionResponse.from(saved);
     }
-
-
 }
