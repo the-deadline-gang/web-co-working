@@ -23,7 +23,6 @@ import jakarta.persistence.Table;
 @Entity
 @Table(name = "topup")
 public class Topup {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "topup_id")
@@ -99,20 +98,37 @@ public class Topup {
 
     // ---------- พฤติกรรม ----------
 
+    /**
+     * เช็คว่า user คนนี้เป็นเจ้าของ topup นี้ไหม (เทียบด้วย equals เพราะ Long เป็น object)
+     * @param userId รับ id ของ user
+     * @return ส่งกลับไปเป็น boolean
+     */
     public boolean isOwnedBy(Long userId) {
         return this.userId.equals(userId);
     }
 
+    /**
+     * เช็คว่า status ของ topup นี้มันยังอยู่ใน status Pending ไหม
+     * @return ส่งกลับไปเป็น boolean
+     */
     public boolean isPending() {
         return status == TopupStatus.PENDING;
     }
 
-    /** PENDING ที่เลยเวลาแล้ว (job ใช้หา, GET ใช้เช็กก่อนตอบ) */
+    /**
+     * ทำการเช็คว่า Topup มันเกินเวลารึยัง
+     * โดยที่ข้างในจะมีการเช็คด้วยว่ามันยังเป็น status Pending ไหม
+     * @param now เวลาปัจจุบัน (ส่งเข้ามา test จะได้กำหนดเวลาเองได้)
+     * @return ส่งกลับแบบ boolean
+     */
     public boolean isOverdue(Instant now) {
         return isPending() && now.isAfter(expiresAt);
     }
 
-    /** จ่ายเงินได้ไหม: PENDING ปกติ หรือ EXPIRED ที่ webhook มาช้า (Q1) */
+    /**
+     * เช็คว่า Topup นี้ยังจ่ายเงินได้ไหม โดยเช็คจาก status (PENDING หรือ EXPIRED ที่จ่ายเฉียดเวลา Q1)
+     * @return ส่งกลับแบบ boolean
+     */
     public boolean canBePaid() {
         return status == TopupStatus.PENDING || status == TopupStatus.EXPIRED;
     }
@@ -133,12 +149,21 @@ public class Topup {
         return txn;
     }
 
+    /**
+     * เอาไว้เปลี่ยน status ว่า Topup นี้หมดเวลาแล้ว
+     * เปลี่ยนได้เฉพาะตอน PENDING เท่านั้น ถ้าไปทับ PAID จะกลายเป็น EXPIRED ซึ่ง canBePaid() = true
+     * แล้ว webhook/poll รอบถัดไปจะเติมเงินซ้ำได้
+     */
     public void markExpired() {
         if (isPending()) {
             this.status = TopupStatus.EXPIRED;
         }
     }
 
+    /**
+     * เอาไว้เปลี่ยน status ว่า Topup นี้ fail แล้ว (payment บอกว่าจ่ายไม่สำเร็จ)
+     * เปลี่ยนได้เฉพาะตอน PENDING เหตุผลเดียวกับ markExpired()
+     */
     public void markFailed() {
         if (isPending()) {
             this.status = TopupStatus.FAILED;
