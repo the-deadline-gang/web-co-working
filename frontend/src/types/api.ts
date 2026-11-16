@@ -9,3 +9,8 @@ export type Me = {
   email: string;
   phone: string;
 };
+export type Wallet = {
+  walletId: number;
+  displayId: string; // "W-000018"
+  balance: number;
+};

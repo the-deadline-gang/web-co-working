@@ -1,11 +1,14 @@
 // หน้า U11 · Wallet
-// ยังไม่มี wallet-service → ใช้ข้อมูล mock จาก features/wallet/mock.ts
+// ยอดเงินมาจาก wallet-service จริง · ประวัติรายการยังใช้ mock จาก features/wallet/mock.ts
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { TRANSACTIONS, WALLET } from "@/features/wallet/mock";
+import { TRANSACTIONS } from "@/features/wallet/mock";
+import { getMyWallet } from "@/lib/api/wallet";
 import { TransactionList } from "@/features/wallet/TransactionList";
 
-export default function WalletPage() {
+export default async function WalletPage() {
+  const wallet = await getMyWallet();
+
   return (
     <div className="space-y-8 ">
       <h1 className="text-5xl font-bold">Wallet</h1>
@@ -19,13 +22,13 @@ export default function WalletPage() {
 
           <p className="mt-2 flex items-baseline gap-3">
             <span className="font-mono text-7xl font-bold leading-none">
-              {WALLET.balance.toLocaleString()}
+              {(wallet?.balance ?? 0).toLocaleString()}
             </span>
             <span className="text-2xl font-bold">Token</span>
           </p>
 
           <p className="mt-4 text-sm">
-            เลขที่ Wallet <span className="font-mono">{WALLET.walletNo}</span> · Update ล่าสุด {WALLET.updatedAt}
+            เลขที่ Wallet <span className="font-mono">{wallet?.displayId ?? "-"}</span>
           </p>
         </div>
 
