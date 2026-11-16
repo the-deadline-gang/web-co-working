@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getMe } from "@/lib/api/me";
+import { getMyWallet } from "@/lib/api/wallet";
 import { ProfileForm } from "@/features/profile/ProfileForm";
 import Image from "next/image";
 import {
@@ -25,7 +26,8 @@ export default async function ProfilePage() {
   const user = await getMe();
   if (!user) redirect("/auth");
 
-  const walletNo = "W-000123";
+  const wallet = await getMyWallet();
+  const walletNo = wallet?.displayId ?? "-";
 
   return (
     <div className="space-y-8">
