@@ -17,6 +17,9 @@ import jakarta.persistence.Table;
  * กระเป๋าเงินของสมาชิก 1 คน
  * ยอดเปลี่ยนได้ทางเดียวคือ credit() / debit() ซึ่งคืนแถว ledger มาให้ save ทุกครั้ง (BR-07)
  * จึงไม่มีทางแก้ยอดโดยไม่มีรายการใน ledger
+ *
+ * ก่อนเรียก credit() / debit() ต้องโหลด wallet ด้วย findByUserIdForUpdate / findByIdForUpdate
+ * (ล็อกแถว) ไม่งั้น 2 request พร้อมกันจะอ่านยอดเดิมแล้วเขียนทับกัน (lost update)
  */
 @Entity
 @Table(name = "wallet")
@@ -49,18 +52,37 @@ public class Wallet {
     }
 
     // ---------- พฤติกรรม ----------
-
+    /**
+     * เป็นการเช็คว่ายอดเงินพอไหม
+     * @param amount ยอดเงิน
+     * @return ส่งกลับไปเป็น boolean ว่าพอไหม
+     */
     public boolean hasEnough(BigDecimal amount) {
         return balance.compareTo(amount) >= 0;
     }
 
-    /** จำนวนที่ยังขาดถ้าจะตัด amount (0 ถ้าพอ) ไว้ใส่ใน details.shortfall */
+
+    /**
+     * เอาไว้แสดงว่ายอดเงินที่ไม่พอคือเท่าไหร่
+     * @param amount ยอดเงินที่จะตัด
+     * @return ส่งกลับไปเป็นจำนวนเงินที่ไม่พอ
+     */
     public BigDecimal shortfallFor(BigDecimal amount) {
         BigDecimal shortfall = amount.subtract(balance);
         return shortfall.signum() > 0 ? shortfall : Money.ZERO;
     }
 
-    /** เงินเข้า: เพิ่มยอดแล้วคืนแถว ledger ที่ต้อง save */
+
+    /**
+     * เงินเข้า: เพิ่มยอดแล้วคืนแถว ledger ที่ต้อง save
+     * เช็กก่อนว่า type เป็นประเภทเงินเข้า และ amount มากกว่า 0 มีทศนิยมไม่เกิน 2 ตำแหน่ง (Money.of)
+     * @param type    ประเภทรายการ ต้องเป็นเงินเข้า เช่น TOPUP, REFUND
+     * @param amount  จำนวนเงิน (บวก)
+     * @param refType รายการต้นทางเป็นประเภทอะไร เช่น TOPUP, BOOKING
+     * @param refId   id ของรายการต้นทาง
+     * @param note    ข้อความที่สมาชิกเห็นในประวัติ เช่น "เติมเงิน 500 บาท" (ไม่บังคับ)
+     * @return แถว ledger ใหม่ ยังไม่ได้ save
+     */
     public WalletTransaction credit(TransactionType type, BigDecimal amount,
                                     RefType refType, Long refId, String note) {
         requireDirection(type, true);
@@ -69,9 +91,18 @@ public class Wallet {
         return new WalletTransaction(this, type, value, this.balance, refType, refId, note);
     }
 
+
     /**
-     * เงินออก: ลดยอดแล้วคืนแถว ledger ที่ต้อง save
-     * service ต้องเช็ก hasEnough() และตอบ 422 เองก่อนเรียก ตรงนี้เป็นด่านกันบั๊กเท่านั้น
+     * เงินออก: ลดยอดแล้วคืนแถว ledger ที่ต้อง save (amount ในแถวเป็นลบ)
+     * เช็ก type เป็นประเภทเงินออก · Money.of (มากกว่า 0, ทศนิยม ≤ 2) · ยอดพอไหม
+     * ยอดไม่พอจะโยน IllegalStateException เป็นด่านกันบั๊กเท่านั้น
+     * service ต้องเช็ก hasEnough() แล้วตอบ 422 เองก่อนเรียกเมธอดนี้
+     * @param type    ประเภทรายการ ต้องเป็นเงินออก เช่น BOOKING, LOAN_FEE
+     * @param amount  จำนวนเงิน (ส่งเป็นบวก เมธอดนี้ทำให้เป็นลบเอง)
+     * @param refType รายการต้นทางเป็นประเภทอะไร
+     * @param refId   id ของรายการต้นทาง
+     * @param note    ข้อความที่สมาชิกเห็นในประวัติ (ไม่บังคับ)
+     * @return แถว ledger ใหม่ ยังไม่ได้ save
      */
     public WalletTransaction debit(TransactionType type, BigDecimal amount,
                                    RefType refType, Long refId, String note) {

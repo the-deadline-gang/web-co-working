@@ -13,13 +13,12 @@ import com.cosync.wallet.entity.TransactionType;
 import com.cosync.wallet.security.MemberOnly;
 import com.cosync.wallet.service.WalletService;
 
-// review 10/11/2026 by peak
+/** สมาชิกดูกระเป๋าของตัวเอง (ยอดคงเหลือ, ประวัติรายการ) */
 @RestController
 @RequestMapping("/me/wallet")
 public class WalletController {
 
     private final WalletService walletService;
- 
 
     public WalletController(WalletService walletService) {
         this.walletService = walletService;
