@@ -6,6 +6,7 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -140,5 +141,25 @@ class MemberControllersTest {
         mockMvc.perform(get("/topups/7").header("X-User-Id", "1").header("X-User-Type", "STAFF"))
                 .andExpect(status().isForbidden());
         verifyNoInteractions(paymentPoller, topupService);
+    }
+
+    @Test
+    @DisplayName("TC-MEM-10 method ที่ endpoint ไม่รองรับ (DELETE /me/wallet) → 405 ไม่ใช่ 500")
+    void wrongMethod_405() throws Exception {
+        mockMvc.perform(delete("/me/wallet").header("X-User-Id", "4").header("X-User-Type", "MEMBER"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.code").value("METHOD_NOT_ALLOWED"));
+        verifyNoInteractions(walletService);
+    }
+
+    @Test
+    @DisplayName("TC-MEM-11 ส่ง body เป็น XML → 415 ไม่ใช่ 500")
+    void xmlBody_415() throws Exception {
+        mockMvc.perform(post("/topups").header("X-User-Id", "4").header("X-User-Type", "MEMBER")
+                        .contentType(MediaType.APPLICATION_XML)
+                        .content("<topup><amountThb>100</amountThb></topup>"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.code").value("UNSUPPORTED_MEDIA_TYPE"));
+        verifyNoInteractions(topupService);
     }
 }
