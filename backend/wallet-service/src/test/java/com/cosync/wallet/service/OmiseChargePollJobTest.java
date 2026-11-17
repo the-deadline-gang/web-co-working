@@ -27,6 +27,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.cosync.wallet.dto.setting.WalletSettingRequest;
 import com.cosync.wallet.entity.Topup;
 import com.cosync.wallet.entity.TopupStatus;
 import com.cosync.wallet.repository.TopupRepository;
@@ -58,8 +59,12 @@ class OmiseChargePollJobTest {
 
         assertEquals(Set.of(TopupStatus.PENDING, TopupStatus.EXPIRED), Set.copyOf(statuses.getValue()));
         Duration lookBack = Duration.between(since.getValue(), before);
-        assertFalse(lookBack.compareTo(Duration.ofHours(2)) > 0, "ย้อนหลังไม่เกิน 2 ชม. แต่ได้ " + lookBack);
-        assertTrue(lookBack.compareTo(Duration.ofHours(2).minusSeconds(5)) >= 0, "ย้อนหลังประมาณ 2 ชม. แต่ได้ " + lookBack);
+        Duration longestQr = Duration.ofMinutes(WalletSettingRequest.MAX_QR_EXPIRE_MINUTES);
+        Duration expected = longestQr.multipliedBy(2);                      // ตอนนี้ = 2 ชม.
+        assertFalse(lookBack.compareTo(expected) > 0, "ย้อนหลังไม่เกิน " + expected + " แต่ได้ " + lookBack);
+        assertTrue(lookBack.compareTo(expected.minusSeconds(5)) >= 0, "ย้อนหลังประมาณ " + expected + " แต่ได้ " + lookBack);
+        // กฎที่ต้องไม่พัง: ยังถามอยู่จนกว่า QR ที่อายุยาวที่สุดจะหมดอายุ (F29)
+        assertTrue(lookBack.compareTo(longestQr) > 0, "WINDOW ต้องยาวกว่าอายุ QR นานสุด");
     }
 
     @Test
