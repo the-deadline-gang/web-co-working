@@ -19,8 +19,6 @@ import com.cosync.wallet.service.PaymentWebhookService;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
-
-// review 10/11/2026 by peak
 @RestController
 @RequestMapping("/webhooks")
 public class WebhookController {
@@ -42,6 +40,10 @@ public class WebhookController {
     /**
      * รับเป็น String ดิบ ไม่ใช่ PaymentWebhook เพราะลายเซ็นคำนวณจาก byte ที่ส่งมาเป๊ะๆ
      * ถ้าให้ Spring แปลงเป็น object ก่อน ช่องว่างหรือลำดับ field อาจเปลี่ยน ลายเซ็นจะไม่ตรง
+     * ตอบ 401 ถ้าลายเซ็นผิดหรือไม่มี, 400 ถ้า body ไม่ใช่ webhook ที่ถูกต้อง
+     * นอกนั้นตอบ 200 เสมอ (Gateway จะได้ไม่ยิงซ้ำ)
+     * @param signature ค่าจาก header X-Signature
+     * @param rawBody body ดิบตามที่ Gateway ส่งมา
      */
     @PostMapping("/payment")
     public ResponseEntity<Void> payment(
@@ -52,7 +54,6 @@ public class WebhookController {
 
         PaymentWebhook event = parse(rawBody);
 
-        // 3. ทำงานจริง
         try {
             paymentWebhookService.handle(event, rawBody);
         } catch (DataIntegrityViolationException duplicate) {
@@ -60,15 +61,15 @@ public class WebhookController {
             log.info("webhook {} มาพร้อมกันซ้ำ ข้าม", event.eventId());
         }
 
-        // 4. ตอบ 200 เสมอเมื่อลายเซ็นถูก Gateway จะได้ไม่ยิงซ้ำ
         return ResponseEntity.ok().build();
     }
 
     /**
-     * แปลงข้อมูลดิบที่มารับมาแบบ String แปลงกลับไปเป็น obj
-     * @param rawBody ข้อมูลดิบ
-     * @return ส่งกลับไปเป็น PaymentWebhook
-     */  
+     * แปลง body ดิบเป็น PaymentWebhook (เรียกหลังตรวจลายเซ็นผ่านแล้ว)
+     * @param rawBody body ดิบตามที่ Gateway ส่งมา
+     * @return webhook ที่ข้อมูลครบ
+     * @throws ApiException 400 ถ้า JSON พังหรือข้อมูลไม่ครบ
+     */
     private PaymentWebhook parse(String rawBody) {
         try {
             PaymentWebhook event = jsonMapper.readValue(rawBody, PaymentWebhook.class);
