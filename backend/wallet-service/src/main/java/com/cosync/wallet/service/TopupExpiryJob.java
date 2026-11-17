@@ -9,6 +9,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.cosync.wallet.repository.TopupRepository;
+
+/**
+ * เปลี่ยน topup ที่เลยเวลาแล้วเป็น EXPIRED (W-09)
+ * ใช้ UPDATE ครั้งเดียวทั้งก้อน (bulk) แทนการโหลดทีละตัวมา markExpired()
+ * ไม่ทับ PAID: ถ้า webhook ล็อกแถวอยู่ UPDATE จะรอ แล้วเห็นว่าไม่ใช่ PENDING แล้วจึงข้าม
+ */
 @Component
 public class TopupExpiryJob {
 
@@ -20,7 +26,7 @@ public class TopupExpiryJob {
         this.topupRepository = topupRepository;
     }
 
-    /** W-09: ทุก 1 นาที เปลี่ยน PENDING ที่เลยเวลาแล้วเป็น EXPIRED */
+    /** ทุก 1 นาที (นับจากรอบก่อนทำเสร็จ) */
     @Scheduled(fixedDelay = 60_000)
     @Transactional
     public void expireOverdueTopups() {

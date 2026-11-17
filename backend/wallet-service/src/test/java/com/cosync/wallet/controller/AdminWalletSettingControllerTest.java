@@ -68,14 +68,26 @@ class AdminWalletSettingControllerTest {
     }
 
     @Test
-    @DisplayName("TC-SET-H04 qrExpireMinutes เกิน 60 → 400")
+    @DisplayName("TC-SET-H04 qrExpireMinutes เกิน 60 → 400 ข้อความบอกเลขสูงสุดจริง")
     void update_invalid() throws Exception {
         mockMvc.perform(put("/admin/wallet-settings").header("X-User-Id", "4")
                         .header("X-User-Type", "STAFF").header("X-Permissions", "setting.manage")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"rate\": 1, \"minThb\": 100, \"maxThb\": 10000, \"qrExpireMinutes\": 61}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.details.qrExpireMinutes").exists());
+                .andExpect(jsonPath("$.details.qrExpireMinutes").value("อายุ QR ต้องไม่เกิน 60 นาที"));
+        verifyNoInteractions(walletService);
+    }
+
+    @Test
+    @DisplayName("TC-SET-H05 qrExpireMinutes = 0 → 400 ข้อความบอกเลขต่ำสุดของ @Min (ไม่ใช่ 1–1)")
+    void update_qrTooShort() throws Exception {
+        mockMvc.perform(put("/admin/wallet-settings").header("X-User-Id", "4")
+                        .header("X-User-Type", "STAFF").header("X-Permissions", "setting.manage")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"rate\": 1, \"minThb\": 100, \"maxThb\": 10000, \"qrExpireMinutes\": 0}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details.qrExpireMinutes").value("อายุ QR ต้องไม่น้อยกว่า 1 นาที"));
         verifyNoInteractions(walletService);
     }
 }

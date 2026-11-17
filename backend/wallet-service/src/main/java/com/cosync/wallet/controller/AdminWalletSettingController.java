@@ -13,23 +13,25 @@ import com.cosync.wallet.security.RequirePermission;
 import com.cosync.wallet.service.WalletService;
 
 import jakarta.validation.Valid;
-// review 10/11/2026 by peak
+
+/** ดูและแก้ตั้งค่ากระเป๋า (อัตราแลก, ยอดเติมต่ำสุด-สูงสุด, อายุ QR) ต้องมีสิทธิ์ setting.manage */
 @RestController
 @RequestMapping("/admin/wallet-settings")
 public class AdminWalletSettingController {
 
     private final WalletService walletService;
 
-    public AdminWalletSettingController(WalletService walletService){
+    public AdminWalletSettingController(WalletService walletService) {
         this.walletService = walletService;
     }
 
-    @GetMapping()         
+    @GetMapping
     @RequirePermission("setting.manage")
     public WalletSettingsResponse getConfig() {
         return walletService.getSettings();
     }
 
+    /** min ต้องไม่มากกว่า max (เช็กใน WalletService), updatedBy = รหัสพนักงานจาก X-User-Id */
     @PutMapping
     @RequirePermission("setting.manage")
     public WalletSettingsResponse update(@RequestHeader("X-User-Id") Long staffId,

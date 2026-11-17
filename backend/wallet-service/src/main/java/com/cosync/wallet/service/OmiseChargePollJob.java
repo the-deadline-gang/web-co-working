@@ -10,6 +10,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import com.cosync.wallet.dto.setting.WalletSettingRequest;
 import com.cosync.wallet.entity.Topup;
 import com.cosync.wallet.entity.TopupStatus;
 import com.cosync.wallet.repository.TopupRepository;
@@ -25,8 +26,9 @@ public class OmiseChargePollJob {
 
     private static final Logger log = LoggerFactory.getLogger(OmiseChargePollJob.class);
 
-    /** QR หมดอายุได้นานสุด 60 นาที ถามย้อนหลัง 2 ชม. เผื่อไว้ */
-    private static final Duration WINDOW = Duration.ofHours(2);
+    /** ถามย้อนหลัง 2 เท่าของอายุ QR นานสุด เผื่อคนจ่ายนาทีสุดท้ายแล้ว Omise อัปเดตช้า */
+    private static final Duration WINDOW =
+            Duration.ofMinutes(WalletSettingRequest.MAX_QR_EXPIRE_MINUTES * 2L);
     private static final List<TopupStatus> OPEN = List.of(TopupStatus.PENDING, TopupStatus.EXPIRED);
 
     private final TopupRepository topupRepository;
@@ -40,7 +42,7 @@ public class OmiseChargePollJob {
     // วนทุก 15 วิ (นับจากตอนที่รอบก่อนทำเสร็จ = fixedDelay) ไล่ถาม gateway ว่ารายการที่ค้างอยู่จ่ายแล้วหรือยัง
     @Scheduled(fixedDelay = 15_000)
     public void pollOpenCharges() {
-                                            //topup ไหนที่ status เป็น PENDING หรือ EXPIRED และสร้างภายใน 2 ชม. ล่าสุดบ้าง
+        // topup ที่ยัง PENDING หรือ EXPIRED และสร้างภายในช่วง WINDOW
         List<Topup> open = topupRepository.findByStatusInAndCreatedAtAfter(OPEN, Instant.now().minus(WINDOW));
         for (Topup topup : open) {
             try {
