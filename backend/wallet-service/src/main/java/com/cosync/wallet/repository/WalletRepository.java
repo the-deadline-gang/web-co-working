@@ -12,7 +12,7 @@ import com.cosync.wallet.entity.Wallet;
 
 import jakarta.persistence.LockModeType;
 
-@Repository 
+@Repository
 public interface WalletRepository extends JpaRepository<Wallet,Long>  {
     Optional<Wallet> findByUserId(Long userId);
 

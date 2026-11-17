@@ -61,7 +61,7 @@ public class Wallet {
         return balance.compareTo(amount) >= 0;
     }
 
-   
+
     /**
      * เอาไว้แสดงว่ายอดเงินที่ไม่พอคือเท่าไหร่
      * @param amount ยอดเงินที่จะตัด
@@ -72,7 +72,7 @@ public class Wallet {
         return shortfall.signum() > 0 ? shortfall : Money.ZERO;
     }
 
-    
+
     /**
      * เงินเข้า: เพิ่มยอดแล้วคืนแถว ledger ที่ต้อง save
      * เช็กก่อนว่า type เป็นประเภทเงินเข้า และ amount มากกว่า 0 มีทศนิยมไม่เกิน 2 ตำแหน่ง (Money.of)
@@ -91,7 +91,7 @@ public class Wallet {
         return new WalletTransaction(this, type, value, this.balance, refType, refId, note);
     }
 
-    
+
     /**
      * เงินออก: ลดยอดแล้วคืนแถว ledger ที่ต้อง save (amount ในแถวเป็นลบ)
      * เช็ก type เป็นประเภทเงินออก · Money.of (มากกว่า 0, ทศนิยม ≤ 2) · ยอดพอไหม
