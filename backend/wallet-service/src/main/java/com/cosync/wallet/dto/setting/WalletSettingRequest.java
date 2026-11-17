@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
+/** ค่าที่ admin ส่งมาแก้ตั้งค่ากระเป๋า (PUT /admin/wallet-settings) */
 public record WalletSettingRequest(
 
         @NotNull(message = "กรุณากรอกอัตราแลกเปลี่ยน")
@@ -24,6 +25,11 @@ public record WalletSettingRequest(
         Integer maxThb,
 
         @NotNull(message = "กรุณากรอกอายุ QR")
-        @Min(value = 1, message = "อายุ QR ต้องอยู่ระหว่าง 1–60 นาที")
-        @Max(value = 60, message = "อายุ QR ต้องอยู่ระหว่าง 1–60 นาที")
-        Integer qrExpireMinutes) {}
+        @Min(value = 1, message = "อายุ QR ต้องไม่น้อยกว่า {value} นาที")
+        @Max(value = WalletSettingRequest.MAX_QR_EXPIRE_MINUTES,
+             message = "อายุ QR ต้องไม่เกิน {value} นาที")
+        Integer qrExpireMinutes) {
+
+    /** อายุ QR นานสุดที่ admin ตั้งได้ OmiseChargePollJob ใช้ค่านี้คำนวณช่วงที่ต้องถาม */
+    public static final int MAX_QR_EXPIRE_MINUTES = 60;
+}

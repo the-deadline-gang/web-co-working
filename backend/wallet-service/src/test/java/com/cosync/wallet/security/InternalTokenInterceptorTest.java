@@ -1,6 +1,7 @@
 package com.cosync.wallet.security;
 
 import static com.cosync.wallet.testsupport.ApiErrors.assertApiError;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.DisplayName;
@@ -37,5 +38,12 @@ class InternalTokenInterceptorTest {
                 () -> interceptor.preHandle(request("wrong"), response, new Object()));
         assertApiError(HttpStatus.UNAUTHORIZED, "INVALID_INTERNAL_TOKEN",
                 () -> interceptor.preHandle(request(""), response, new Object()));
+    }
+
+    @Test
+    @DisplayName("TC-ITK-03 INTERNAL_API_TOKEN ว่างหรือมีแต่ช่องว่าง → เปิดแอปไม่ขึ้น (กัน header ว่างผ่าน)")
+    void blankToken_failsFast() {
+        assertThrows(IllegalStateException.class, () -> new InternalTokenInterceptor(""));
+        assertThrows(IllegalStateException.class, () -> new InternalTokenInterceptor("   "));
     }
 }

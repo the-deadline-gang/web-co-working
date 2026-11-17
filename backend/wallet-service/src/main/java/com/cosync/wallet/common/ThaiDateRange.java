@@ -13,14 +13,17 @@ public final class ThaiDateRange {
     public static final ZoneId TH = ZoneId.of("Asia/Bangkok");
     private static final int MAX_DAYS = 366;
 
-    private ThaiDateRange() {}         
+    private ThaiDateRange() {}
 
-    /** เที่ยงคืนต้นวัน (เวลาไทย) เช่น 2026-11-01 > 2026-10-31T17:00:00Z */
+    /** เที่ยงคืนต้นวัน (เวลาไทย) เช่น 2026-11-01 → 2026-10-31T17:00:00Z */
     public static Instant startOf(LocalDate day) {
         return day.atStartOfDay(TH).toInstant();
     }
 
-    /** เที่ยงคืนของวันถัดไป (ใช้กับ < ไม่ใช่ <=) จะได้ทั้งวันของ day ครบ */
+    /**
+     * เที่ยงคืนของวันถัดไป ใช้คู่กับ startOf เป็นช่วง [start, end) แล้ว query ด้วย < ไม่ใช่ <=
+     * ไม่ใช้ 23:59:59 เพราะ created_at ละเอียดถึงไมโครวินาที รายการตอน 23:59:59.5 จะหลุด
+     */
     public static Instant endOf(LocalDate day) {
         return day.plusDays(1).atStartOfDay(TH).toInstant();
     }

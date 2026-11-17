@@ -37,15 +37,13 @@ public record MoneyMoveRequest(
         String note) {
 
     /**
-     * ลายนิ้วมือของคำขอนี้ ไว้เช็กว่า Idempotency-Key เดิมมากับ body เดิมไหม
+     * ลายนิ้วมือ (SHA-256) ของคำขอนี้ ไว้เช็กว่า Idempotency-Key เดิมมากับ body เดิมไหม
      * คำนวณจากค่าแต่ละช่อง ไม่ใช่ JSON ดิบ เพราะ JSON ที่เว้นวรรคต่างกันต้องนับว่าเป็นคำขอเดียวกัน
-     * ใส่ userId กับ direction (debit/credit) ด้วย key เดิมไปใช้กับคนอื่นหรือคนละทางจะได้ 409
-     */
-    /**
-     * เอาไว้เก็บข้อมูลโดยเช้ารหัสข้อมูลไว้
-     * @param userId id ของ user
-     * @param direction ระบุ (debit/credit) 
-     * @return ส่งกลับไปเป็น string ที่เข้ารหัสแล้ว
+     * ใส่ userId กับ direction ด้วย key เดิมไปใช้กับคนอื่นหรือคนละทางจะได้ 409 ไม่ใช่ได้ผลของคำขออื่นกลับไป
+     * hash ย้อนกลับเป็นข้อมูลเดิมไม่ได้ ใช้เทียบเท่านั้น (ไม่ใช่การเข้ารหัส)
+     * @param userId    เจ้าของ wallet
+     * @param direction "debit" หรือ "credit"
+     * @return SHA-256 เป็นตัวอักษร hex 64 ตัว
      */
     public String requestHash(Long userId, String direction) {
         String canonical = String.join("|",

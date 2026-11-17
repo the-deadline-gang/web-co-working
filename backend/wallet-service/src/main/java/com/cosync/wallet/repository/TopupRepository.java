@@ -24,6 +24,11 @@ public interface TopupRepository extends JpaRepository<Topup, Long> {
     Optional<Topup> findByGatewayRefForUpdate(@Param("gatewayRef") String gatewayRef);
 
 
+    /**
+     * bulk update ข้าม entity ไปเลย @UpdateTimestamp ไม่ทำงาน จึงต้องใส่ updatedAt เอง
+     * WHERE status = PENDING ทำให้ไม่ทับ PAID ที่ webhook เพิ่งจ่าย
+     * @return จำนวนแถวที่เปลี่ยน
+     */
     @Modifying
     @Query("""
             update Topup t

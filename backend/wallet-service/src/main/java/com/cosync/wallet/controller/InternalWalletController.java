@@ -14,7 +14,8 @@ import com.cosync.wallet.dto.wallet.WalletResponse;
 import com.cosync.wallet.service.WalletService;
 
 import jakarta.validation.Valid;
-// review 10/11/2026 by peak
+
+/** API ภายในให้ service อื่นเรียก ต้องส่ง X-Internal-Token (ตรวจใน InternalTokenInterceptor) */
 @RestController
 @RequestMapping("/internal/wallets")
 public class InternalWalletController {
@@ -44,4 +45,3 @@ public class InternalWalletController {
         return walletService.credit(userId, idempotencyKey, req);
     }
 }
-

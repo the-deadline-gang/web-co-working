@@ -3,6 +3,7 @@ package com.cosync.wallet.security;
 import static com.cosync.wallet.testsupport.ApiErrors.assertApiError;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -40,5 +41,12 @@ class WebhookSignatureVerifierTest {
                 () -> verifier.verify(BODY.replace("evt_1", "evt_2"), SIG));
         assertApiError(HttpStatus.UNAUTHORIZED, "INVALID_SIGNATURE",
                 () -> new WebhookSignatureVerifier("other-secret").verify(BODY, SIG));
+    }
+
+    @Test
+    @DisplayName("TC-SIG-04 PAYMENT_WEBHOOK_SECRET ว่างหรือมีแต่ช่องว่าง → เปิดแอปไม่ขึ้น")
+    void blankSecret_failsFast() {
+        assertThrows(IllegalStateException.class, () -> new WebhookSignatureVerifier(""));
+        assertThrows(IllegalStateException.class, () -> new WebhookSignatureVerifier("   "));
     }
 }

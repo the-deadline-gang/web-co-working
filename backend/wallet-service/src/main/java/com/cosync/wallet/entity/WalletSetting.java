@@ -69,13 +69,13 @@ public class WalletSetting {
         return QUICK_AMOUNTS.stream().filter(this::allowsAmount).toList();
     }
 
-    /** service ต้องเช็ก min <= max และตอบ 400 เองก่อน ตรงนี้เป็นด่านกันบั๊ก (DB ก็มี CHECK) */
     /**
-     * การ update ของ wallet 
+     * แก้ค่าตั้งของกระเป๋า
+     * service ต้องเช็ก min <= max และตอบ 400 เองก่อน ตรงนี้เป็นด่านกันบั๊ก (DB ก็มี CHECK)
      * @param rate rate การแลกเปลี่ยน
      * @param minThb จำนวนเงินขั้นต่ำ
      * @param maxThb จำนวนเงินสูงสุด
-     * @param qrExpireMinutes qr จะหมดภานในกี่นาที
+     * @param qrExpireMinutes QR จะหมดอายุภายในกี่นาที
      * @param updatedBy update โดย staff คนไหน
      */
     public void update(BigDecimal rate, int minThb, int maxThb, int qrExpireMinutes, String updatedBy) {
