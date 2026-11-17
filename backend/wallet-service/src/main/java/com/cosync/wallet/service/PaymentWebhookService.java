@@ -20,10 +20,10 @@ import com.cosync.wallet.repository.WalletTransactionRepository;
 
 import tools.jackson.databind.json.JsonMapper;
 
-// review 10/11/2026 by peak
 /**
  * รับผลการจ่ายเงินจาก Gateway แล้วเติม Token (F3 ขั้น 4)
  * กรณีผิดปกติส่วนใหญ่แค่ log แล้วจบ ไม่ throw เพราะถ้าตอบ error Gateway จะยิงซ้ำมาเรื่อยๆ
+ * ล็อก topup ก่อน wallet เสมอ (ลำดับเดียวกันทุกที่ กัน deadlock)
  */
 @Service
 public class PaymentWebhookService {
@@ -50,7 +50,13 @@ public class PaymentWebhookService {
 
     /**
      * เอาไว้จัดการ webhook และก็จัดการเงื่อนไขต่างๆ
-     * @param event  รับมาเป็นแบบ PaymentWebhook เอาไว้เช็ค 
+     * เริ่มจากการเช็คเงื่อนไขว่า event นี้เคยมาแล้วรึยัง
+     * แล้วก็จะทำการบันทึกลง DB ของ PaymentEvent และจะเช็คทันทีว่า PK ชนกันไหม
+     * หา Topup จาก gatewayRef แล้วทำการ lock ไว้ ต่อด้วยการเช็คว่ารายการนี้จ่ายไปรึยัง
+     * ทำการเช็คว่ารายการ Topup นี้กับ event ที่ส่งมาค่าเงินเท่ากันจริงๆไหม
+     * เช็กว่า event สำเร็จหรือไม่ ถ้าไม่สำเร็จ topup เป็น FAILED ถ้าสำเร็จจะล็อก wallet แล้วเติม Token
+     * กรณีผิดปกติไม่ throw เพราะ gateway จะยิงซ้ำไม่จบ
+     * @param event  ผลการจ่ายที่แปลงจาก JSON แล้ว (eventId, gatewayRef, status, amountThb, paidAt)
      * @param rawBody ข้อมูลดิบๆทั้งก้อน
      */
     @Transactional
