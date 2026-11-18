@@ -1,13 +1,15 @@
 // หน้า U11 · Wallet
-// ยอดเงินมาจาก wallet-service จริง · ประวัติรายการยังใช้ mock จาก features/wallet/mock.ts
+// ยอดเงิน + ประวัติรายการ มาจาก wallet-service จริง
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { TRANSACTIONS } from "@/features/wallet/mock";
-import { getMyWallet } from "@/lib/api/wallet";
+import { getMyTransactions, getMyWallet } from "@/lib/api/wallet";
+import { toTransaction } from "@/features/wallet/transactions";
 import { TransactionList } from "@/features/wallet/TransactionList";
 
 export default async function WalletPage() {
   const wallet = await getMyWallet();
+  // แปลงข้อมูลจาก API เป็นแบบพร้อมแสดง (ชื่อ ไอคอน สี เวลาไทย) ก่อนส่งให้ client
+  const transactions = (await getMyTransactions()).map(toTransaction);
 
   return (
     <div className="space-y-8 ">
@@ -42,7 +44,7 @@ export default async function WalletPage() {
       </div>
 
       {/* ปุ่มกรอง + รายการ (client component เพราะต้องจำว่ากดปุ่มไหน) */}
-      <TransactionList transactions={TRANSACTIONS} />
+      <TransactionList transactions={transactions} />
     </div>
   );
 }

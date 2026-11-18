@@ -35,3 +35,23 @@ export type Topup = {
   paidAt: string | null;
   balanceAfter: number | null; // ยอดหลังเติม (มีเฉพาะตอน PAID)
 };
+
+/** รายการเคลื่อนไหว 1 รายการ → GET /me/wallet/transactions (อยู่ใน items) */
+export type WalletTransaction = {
+  txnId: number;
+  type: "TOPUP" | "BOOKING" | "REFUND" | "LOAN_FEE" | "DEPOSIT_HOLD" | "DEPOSIT_REFUND";
+  amount: number; // + = เงินเข้า, - = เงินออก
+  balanceAfter: number;
+  refType: "TOPUP" | "BOOKING" | "LOAN";
+  refId: number; // id ของการเติมเงิน / การจอง / การยืม ที่ทำให้เกิดรายการนี้
+  note: string | null;
+  createdAt: string; // "2026-11-16T08:48:52Z"
+};
+
+/** รูปแบบผลลัพธ์แบบแบ่งหน้าของ backend */
+export type Page<T> = {
+  items: T[];
+  page: number;
+  size: number;
+  totalItems: number;
+};

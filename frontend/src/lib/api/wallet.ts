@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { cookies } from "next/headers";
-import type { TopupConfig, Wallet } from "@/types/api";
+import type { Page, TopupConfig, Wallet, WalletTransaction } from "@/types/api";
 
 export const getMyWallet = cache(async (): Promise<Wallet | null> => {
   const cookieStore = await cookies();
@@ -22,4 +22,16 @@ export const getTopupConfig = cache(async (): Promise<TopupConfig | null> => {
   });
   if (!res.ok) return null;
   return res.json();
+});
+
+// ประวัติรายการเคลื่อนไหว (ใหม่สุดก่อน) · ตอนนี้ดึงแค่หน้าแรก 50 รายการ ยังไม่มีปุ่ม "ดูเพิ่ม"
+export const getMyTransactions = cache(async (): Promise<WalletTransaction[]> => {
+  const cookieStore = await cookies();
+  const res = await fetch(`${process.env.BACKEND_URL}/me/wallet/transactions?size=50`, {
+    headers: { cookie: cookieStore.toString() },
+    cache: "no-store",
+  });
+  if (!res.ok) return []; // ไม่มี wallet / ยังไม่ login → ถือว่าไม่มีรายการ
+  const data: Page<WalletTransaction> = await res.json();
+  return data.items;
 });
