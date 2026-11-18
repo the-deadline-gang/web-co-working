@@ -1,17 +1,10 @@
 "use client";
 import { useState } from "react";
-import {
-  Plus,
-  CalendarDays,
-  Package,
-  RotateCcw,
-  TriangleAlert,
-  X,
-} from "lucide-react";
-import type { Transaction, TxType } from "./mock";
+import { Plus, CalendarDays, Package, RotateCcw } from "lucide-react";
+import type { Transaction, TxGroup } from "./transactions";
 
 // ปุ่มกรอง: value "all" = แสดงทุกรายการ
-const FILTERS: { label: string; value: TxType | "all" }[] = [
+const FILTERS: { label: string; value: TxGroup | "all" }[] = [
   { label: "ทั้งหมด", value: "all" },
   { label: "เติมเงิน", value: "topup" },
   { label: "ค่าจอง", value: "booking" },
@@ -24,8 +17,6 @@ const ICONS = {
   calendar: CalendarDays,
   package: Package,
   refund: RotateCcw,
-  alert: TriangleAlert,
-  x: X,
 };
 
 // สีพื้นกล่องไอคอนตาม tone
@@ -41,20 +32,23 @@ export function TransactionList({
 }: {
   transactions: Transaction[];
 }) {
-  const [filter, setFilter] = useState<TxType | "all">("all");
+  const [filter, setFilter] = useState<TxGroup | "all">("all");
 
   // รายการที่จะแสดงตามปุ่มที่เลือก
   const shown =
     filter === "all"
       ? transactions
-      : transactions.filter((tx) => tx.type === filter);
+      : transactions.filter((tx) => tx.group === filter);
 
   // นับจำนวนรายการของแต่ละปุ่ม → เลขเล็กๆ หลังชื่อปุ่ม ("ทั้งหมด 6")
-  function countOf(value: TxType | "all") {
+  function countOf(value: TxGroup | "all") {
     return value === "all"
       ? transactions.length
-      : transactions.filter((tx) => tx.type === value).length;
+      : transactions.filter((tx) => tx.group === value).length;
   }
+
+  // รายชื่อเดือนที่มีรายการ (ไม่ซ้ำ เรียงตามข้อมูล = ใหม่สุดก่อน)
+  const months = [...new Set(shown.map((tx) => tx.month))];
 
   // สีของจำนวนเงิน: เงินเข้า = เขียว · ค่าปรับ (tone แดง + เงินออก) = แดง · ที่เหลือ = สีเข้ม
   function amountColor(tx: Transaction) {
@@ -65,7 +59,7 @@ export function TransactionList({
 
   return (
     <div className="space-y-6">
-      {/* ปุ่มกรอง */}
+      
       <div className="flex gap-3">
         {FILTERS.map((f) => (
           <button
@@ -84,45 +78,53 @@ export function TransactionList({
         ))}
       </div>
 
-      <h2 className="text-2xl font-bold text-[#451A03]">ตุลาคม 2569</h2>
+      
+      {shown.length === 0 && (
+        <p className="rounded-2xl border-2 border-dashed border-[#D9C49A] px-5 py-10 text-center text-sm text-[#451A03]">
+          ยังไม่มีรายการ
+        </p>
+      )}
 
-      <div className="divide-y-2 divide-dashed divide-[#F4D9A0] rounded-2xl border-2 border-[#451A03] bg-white text-[#451A03]">
-        {shown.map((tx) => {
-          const Icon = ICONS[tx.icon];
-          return (
-            <div
-              key={tx.id}
-              className="grid grid-cols-[auto_1fr_230px_130px_160px] items-center gap-4 px-5 py-4"
-            >
-              <div
-                className={`flex h-12 w-12 items-center justify-center rounded-xl border-2 border-[#451A03] ${TONE_BG[tx.tone]}`}
-              >
-                <Icon className="h-5 w-5" />
-              </div>
+      
+      {months.map((month) => (
+        <section key={month} className="space-y-4">
+          <h2 className="text-2xl font-bold text-[#451A03]">{month}</h2>
 
-              <div>
-                <p className="font-bold">{tx.title}</p>
-                <p className="text-sm">{tx.subtitle}</p>
-              </div>
+          <div className="divide-y-2 divide-dashed divide-[#F4D9A0] rounded-2xl border-2 border-[#451A03] bg-white text-[#451A03]">
+            {shown
+              .filter((tx) => tx.month === month)
+              .map((tx) => {
+                const Icon = ICONS[tx.icon];
+                return (
+                  <div
+                    key={tx.id}
+                    className="grid grid-cols-[auto_1fr_230px_130px_160px] items-center gap-4 px-5 py-4"
+                  >
+                    <div
+                      className={`flex h-12 w-12 items-center justify-center rounded-xl border-2 border-[#451A03] ${TONE_BG[tx.tone]}`}
+                    >
+                      <Icon className="h-5 w-5" />
+                    </div>
 
-              <p className="font-mono text-sm">{tx.ref}</p>
+                    <div>
+                      <p className="font-bold">{tx.title}</p>
+                      <p className="text-sm">{tx.subtitle}</p>
+                    </div>
 
-              <p className="text-sm">{tx.time}</p>
+                    <p className="font-mono text-sm">{tx.ref}</p>
 
-              <div className="flex flex-col items-end gap-1">
-                <p className={`font-mono text-xl font-bold ${amountColor(tx)}`}>
-                  {tx.amount > 0 ? "+" : ""}
-                  {tx.amount}
-                </p>
-              </div>
-            </div>
-          );
-        })}
+                    <p className="text-sm">{tx.time}</p>
 
-        {shown.length === 0 && (
-          <p className="px-5 py-8 text-center text-sm">ยังไม่มีรายการ</p>
-        )}
-      </div>
+                    <p className={`text-right font-mono text-xl font-bold ${amountColor(tx)}`}>
+                      {tx.amount > 0 ? "+" : ""}
+                      {tx.amount.toLocaleString()}
+                    </p>
+                  </div>
+                );
+              })}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }
