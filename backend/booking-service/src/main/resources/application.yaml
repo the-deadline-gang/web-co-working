@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: booking-service
+  config:
+    import:
+      - optional:file:../../.env[.properties]
+      - optional:file:.env[.properties]
+  datasource:
+    url: jdbc:mysql://localhost:3307/booking_db?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true   
+    username: cosync
+    password: cosync
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+
+server:
+  port: 8083            
+  address: 127.0.0.1    
+
+app:
+  internal:
+    token: ${INTERNAL_API_TOKEN}
+  wallet:
+    url: ${WALLET_URL:http://localhost:8082}       
+  identity:
+    url: ${IDENTITY_URL:http://localhost:8081}     
