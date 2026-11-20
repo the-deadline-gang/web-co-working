@@ -53,7 +53,7 @@ public class BookingSetting {
     @Column(name = "loan_max_items" , nullable=false)
     private int loanMaxItems;
 
-    @Column(name = "lost_after_days" )
+    @Column(name = "lost_after_days" , nullable = false )
     private int lostAfterDays;
 
     @Column(name = "last_end_of_day" )

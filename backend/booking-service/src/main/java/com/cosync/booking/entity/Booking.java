@@ -221,25 +221,3 @@ public class Booking {
     public Instant getCreatedAt() { return createdAt; }
 }
 
-/*
-
-CREATE TABLE booking (
-    booking_id    BIGINT        NOT NULL AUTO_INCREMENT,
-    user_id       BIGINT        NOT NULL,                    -- เจ้าของการจอง
-    resource_id   BIGINT        NOT NULL,
-    service_type  VARCHAR(20)   NOT NULL,                    -- คัดลอกจาก resource ตอนสร้าง
-    start_at      DATETIME(6)   NOT NULL,
-    end_at        DATETIME(6)   NOT NULL,
-    status        VARCHAR(20)   NOT NULL DEFAULT 'PENDING_PAYMENT',
-    price         DECIMAL(12,2) NOT NULL,
-    hold_until    DATETIME(6)   NULL,                        -- มีค่าตอน PENDING_PAYMENT (BR-16)
-    hold_extended BOOLEAN       NOT NULL DEFAULT FALSE,      -- BR-17 ต่อได้ครั้งเดียว
-    paid_at       DATETIME(6)   NULL,
-    checked_in_at DATETIME(6)   NULL,                        -- เข้าครั้งแรกของใครก็ได้ในการจองนี้
-    cancelled_at  DATETIME(6)   NULL,
-    refund_amount DECIMAL(12,2) NULL,                        -- มีค่าเมื่อ CANCELLED (อาจเป็น 0)
-    created_at    DATETIME(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    updated_at    DATETIME(6)   NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-
-
-*/
