@@ -49,6 +49,13 @@ public class ServiceRate {
 
     protected ServiceRate(){}
 
+    public ServiceRate(ServiceType serviceType,String name, BigDecimal rate,RateUnit unit,BigDecimal discountPct){
+        this.serviceType = serviceType;
+        this.name = name;
+        this.rate = rate;
+        this.unit = unit;
+        this.discountPct = discountPct;
+    }
     
 
     public String getName(){
@@ -69,6 +76,13 @@ public class ServiceRate {
 
     public ServiceType getServiceType(){
         return  this.serviceType;
+    }
+    public  String getUpdateBy(){
+        return this.updatedBy;
+    }
+
+    public Instant getUpdateAt(){
+        return this.updatedAt; 
     }
 
 

@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.cosync.booking.dto.rate.RateResponse;
 import com.cosync.booking.dto.setting.BookingSettingsRequest;
 import com.cosync.booking.dto.setting.BookingSettingsResponse;
 import com.cosync.booking.security.RequirePermission;
@@ -37,4 +38,7 @@ public class AdminSettingController {
                                                      @Valid @RequestBody BookingSettingsRequest req){
         return  settingService.updateSettings(staffId, req);
     }
+
+
+
 }
