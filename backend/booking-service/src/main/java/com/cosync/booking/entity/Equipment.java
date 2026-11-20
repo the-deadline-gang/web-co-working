@@ -1,6 +1,7 @@
 package com.cosync.booking.entity;
 
 import java.time.Instant;
+import java.util.Arrays;
 
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -26,7 +27,7 @@ public class Equipment {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "equipment_id", length = 20 , nullable=false)
+    @Column(name = "equipment_id" , nullable=false)
     private Long id;  
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -60,7 +61,64 @@ public class Equipment {
         this.resource = resource;
     }
 
-  
+
+    /**
+     * เอาไว้เปลี่ยน status ว่าอุปกรณ์นี้ถูกยืม
+     * โดยจะมีการเช็คก่อนว่า status ก่อนหน้าเป็น AVAILABLE ไหม
+     */
+    public void markBorrowed(){
+        requireStatus("markBorrowed", EquipmentStatus.AVAILABLE);
+        this.status = EquipmentStatus.BORROWED;
+    }
+
+    /**
+     * บันทึกการคืนของซึ่งจะบันทึกว่าต้องซ่อมหรือไม่
+     * โดยจะมีการเช็คว่า status เป็น  BORROWED ก่อนไหม
+     * @param needsRepair ต้องการซ่อมไหม
+     */ 
+    public void markReturned(boolean needsRepair){
+        requireStatus("markReturned", EquipmentStatus.BORROWED);
+        if (needsRepair) {
+            this.status = EquipmentStatus.MAINTENANCE;
+        }else{
+            this.status = EquipmentStatus.AVAILABLE;
+        }
+
+    }
+
+    /**
+     * เอาไว้เปลี่ยน status ระหว่าง  AVAILABLE กับ MAINTENANCE
+     * โดยจะมีการเช็คว่าให้ใส่มาได้แค่ AVAILABLE กับ MAINTENANCE
+     * @param to จะเปลี่ยน status เป็นอะไร AVAILABLE กับ MAINTENANCE
+     */
+    public void changeStatus(EquipmentStatus to) {
+        requireStatus("changeStatus", EquipmentStatus.AVAILABLE, EquipmentStatus.MAINTENANCE);
+        if (to != EquipmentStatus.AVAILABLE && to != EquipmentStatus.MAINTENANCE) {
+            throw new IllegalArgumentException("เปลี่ยนได้เฉพาะ AVAILABLE หรือ MAINTENANCE แต่ได้ " + to);
+        }
+        this.status = to;
+    }
+
+    /**
+     * เอาไว้บันทึกว่าของหาย
+     */
+    public void markLost(){
+        requireStatus("markLost", EquipmentStatus.BORROWED);
+        this.status = EquipmentStatus.LOST;
+    }
+    
+
+    /**
+     * เอาไว้เช็ค status ว่าเป็นแบบที่ต้องการไหม
+     * @param action กำลังทำอะไร
+     * @param allowed status อะไรบ้าง
+     */
+    private void requireStatus(String action, EquipmentStatus... allowed) {
+        for (EquipmentStatus s : allowed) {
+            if (status == s) return;          // ตรงกับตัวใดตัวหนึ่ง = ผ่าน
+        }
+         throw new IllegalStateException(action + " ได้เฉพาะตอน " + Arrays.toString(allowed)  + " แต่ตอนนี้เป็น " + status);
+    }
 
     // ---------- getter ----------
 
