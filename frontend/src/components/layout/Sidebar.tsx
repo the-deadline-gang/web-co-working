@@ -3,8 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { House, CirclePlus, CalendarDays, QrCode, Wallet, Package, User, LogOut } from "lucide-react";
-import type { Me } from "@/types/api";
-
+import type { Me, Wallet as WalletInfo } from "@/types/api";
 
 const MENU = [
   { label: "หน้าหลัก", href: "/home", icon: House }, 
@@ -16,11 +15,9 @@ const MENU = [
   { label: "โปรไฟล์", href: "/profile", icon: User },
 ];
 
-export function Sidebar({user}: {user: Me}) {
+export function Sidebar({ user, wallet }: { user: Me; wallet: WalletInfo | null }) {
   const pathname = usePathname(); // URL ปัจจุบัน เช่น "/home" → ใช้เช็คว่าเมนูไหนกำลังเปิดอยู่
   const router = useRouter();
-
-  const wallet = { balance: 1250, walletNo: "W-000123" }; // TODO: รอ wallet-service
 
   // ออกจากระบบ: backend ลบ cookie access_token → กลับไปหน้าเข้าสู่ระบบ
   async function handleLogout() {
@@ -38,9 +35,9 @@ export function Sidebar({user}: {user: Me}) {
 
       <div className="rounded-xl border-2 border-[#451A03] bg-[#1E44E6] p-4 text-white shadow-[4px_4px_0_#451A03]">
         <p className="text-sm font-bold">ยอด Token</p>
-        <p className="font-mono text-3xl font-bold">{wallet.balance.toLocaleString()}</p>
+        <p className="font-mono text-3xl font-bold">{(wallet?.balance ?? 0).toLocaleString()}</p>
         <p className="text-xs">
-          {wallet.walletNo} ·{" "}
+          {wallet?.displayId ?? "-"} ·{" "}
           <Link href="/wallet" className="hover:underline">
             ดู Wallet
           </Link>

@@ -9,3 +9,49 @@ export type Me = {
   email: string;
   phone: string;
 };
+export type Wallet = {
+  walletId: number;
+  displayId: string; // "W-000018"
+  balance: number;
+};
+/** ตั้งค่าการเติมเงิน → GET /topups/config */
+export type TopupConfig = {
+  rate: number; // 1 บาท ได้กี่ Token
+  minThb: number; // เติมต่ำสุด (บาท)
+  maxThb: number; // เติมสูงสุด (บาท)
+  quickAmounts: number[]; // ปุ่มจำนวนลัด เช่น [200, 500, 1000, 2000]
+  qrExpireMinutes: number; // QR หมดอายุในกี่นาที
+};
+
+/** คำขอเติมเงิน 1 ครั้ง → POST /topups และ GET /topups/{id} */
+export type Topup = {
+  topupId: number;
+  displayId: string; // "PAY-20261003-0087"
+  amountThb: number;
+  tokenAmount: number;
+  status: "PENDING" | "PAID" | "EXPIRED" | "FAILED";
+  qrImage: string | null; // รูป QR (มีเฉพาะตอน PENDING) ใช้ใส่ <img src> ได้เลย
+  expiresAt: string; // เวลา QR หมดอายุ
+  paidAt: string | null;
+  balanceAfter: number | null; // ยอดหลังเติม (มีเฉพาะตอน PAID)
+};
+
+/** รายการเคลื่อนไหว 1 รายการ → GET /me/wallet/transactions (อยู่ใน items) */
+export type WalletTransaction = {
+  txnId: number;
+  type: "TOPUP" | "BOOKING" | "REFUND" | "LOAN_FEE" | "DEPOSIT_HOLD" | "DEPOSIT_REFUND";
+  amount: number; // + = เงินเข้า, - = เงินออก
+  balanceAfter: number;
+  refType: "TOPUP" | "BOOKING" | "LOAN";
+  refId: number; // id ของการเติมเงิน / การจอง / การยืม ที่ทำให้เกิดรายการนี้
+  note: string | null;
+  createdAt: string; // "2026-11-16T08:48:52Z"
+};
+
+/** รูปแบบผลลัพธ์แบบแบ่งหน้าของ backend */
+export type Page<T> = {
+  items: T[];
+  page: number;
+  size: number;
+  totalItems: number;
+};
