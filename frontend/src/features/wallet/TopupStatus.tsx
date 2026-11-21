@@ -57,6 +57,7 @@ export function TopupStatus({ topupId }: { topupId: string }) {
   }
   if (!topup) return <p className="text-center text-[#451A03]">กำลังโหลด...</p>;
 
+  // ---------- ยังไม่จ่าย: แสดง QR (ไม่มีในแบบ ทำให้เข้าชุดกับการ์ด U4) ----------
   if (topup.status === "PENDING") {
     return (
       <div className="mx-auto max-w-md space-y-6 text-[#451A03]">
@@ -67,6 +68,7 @@ export function TopupStatus({ topupId }: { topupId: string }) {
           </div>
 
           <div className="space-y-4 p-6">
+            {/* ใช้ <img> ธรรมดา เพราะ QR เป็นรูปแบบ data:image/png;base64 */}
             {topup.qrImage && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -98,6 +100,7 @@ export function TopupStatus({ topupId }: { topupId: string }) {
           ยกเลิก
         </Link>
 
+        {/* ⚠️ ปุ่มทดสอบ: โผล่เฉพาะตอน npm run dev · ขึ้นเว็บจริงจะหายไปเอง */}
         {process.env.NODE_ENV === "development" && (
           <div className="space-y-2 rounded-xl border-2 border-dashed border-[#F08A12] bg-[#FDEEC4] p-4">
             <p className="text-center text-xs font-bold">DEV · จำลองผลการชำระเงิน (ไม่ต้องสแกนจริง)</p>
@@ -123,13 +126,13 @@ export function TopupStatus({ topupId }: { topupId: string }) {
     );
   }
 
-  // U4 ผลการชำระเงิน
+  // ---------- U4 ผลการชำระเงิน ----------
   const success = topup.status === "PAID";
 
   return (
     <div className="mx-auto max-w-xl space-y-6 text-[#451A03]">
       <div className="overflow-hidden rounded-2xl border-2 border-[#451A03] bg-white shadow-[6px_6px_0_#451A03]">
-        
+        {/* หัวการ์ด: สำเร็จ = เหลือง · ไม่สำเร็จ = แดงอ่อน */}
         <div
           className={`border-b-2 border-[#451A03] px-6 py-8 text-center ${
             success ? "bg-[#F9B51F]" : "bg-[#FDDDE0]"
@@ -152,7 +155,7 @@ export function TopupStatus({ topupId }: { topupId: string }) {
           </p>
         </div>
 
-        
+        {/* รายละเอียด */}
         <div className="space-y-3 px-7 py-6">
           <div className="flex items-center justify-between">
             <span>ID การชำระเงิน</span>
@@ -198,7 +201,7 @@ export function TopupStatus({ topupId }: { topupId: string }) {
         </div>
       </div>
 
-      
+      {/* ปุ่มล่าง: ซ้าย = ขาว · ขวา = น้ำเงิน เงาแข็ง */}
       <div className="grid grid-cols-2 gap-4">
         <Link
           href="/home"

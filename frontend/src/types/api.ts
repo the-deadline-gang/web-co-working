@@ -35,6 +35,7 @@ export type Topup = {
   paidAt: string | null;
   balanceAfter: number | null; // ยอดหลังเติม (มีเฉพาะตอน PAID)
 };
+<<<<<<< HEAD
 
 /** รายการเคลื่อนไหว 1 รายการ → GET /me/wallet/transactions (อยู่ใน items) */
 export type WalletTransaction = {
@@ -55,3 +56,5 @@ export type Page<T> = {
   size: number;
   totalItems: number;
 };
+=======
+>>>>>>> main

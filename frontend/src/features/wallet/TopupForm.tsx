@@ -41,9 +41,11 @@ export function TopupForm({ user, config }: { user: Me; config: TopupConfig }) {
 
   return (
     <div className="grid grid-cols-[1fr_420px] items-start gap-8 text-[#451A03]">
+      {/* ---------- ซ้าย: กรอกจำนวนเงิน ---------- */}
       <div className="space-y-4">
         <h2 className="text-xl font-bold">จำนวนเงินที่จะเติม (บาท)</h2>
 
+        {/* ช่องกรอกใหญ่: กรอบอยู่ที่ label · input ข้างในไม่มีขอบ */}
         <label
           className={`flex items-center gap-4 rounded-2xl border-2 bg-white px-6 py-5 shadow-[4px_4px_0_#451A03] ${
             tooLow || tooHigh ? "border-[#D7263D]" : "border-[#451A03]"
@@ -58,6 +60,7 @@ export function TopupForm({ user, config }: { user: Me; config: TopupConfig }) {
           />
         </label>
 
+        {/* ปุ่มจำนวนลัด (มาจาก backend) */}
         <div className="grid grid-cols-5 gap-3">
           {config.quickAmounts.map((q) => (
             <button
@@ -75,12 +78,14 @@ export function TopupForm({ user, config }: { user: Me; config: TopupConfig }) {
           ))}
         </div>
 
+        {/* ข้อความช่วย: กรอกเกินช่วงที่เติมได้ → สีแดง */}
         <p className={`text-sm ${tooLow || tooHigh ? "font-bold text-[#D7263D]" : ""}`}>
           เติมได้ {config.minThb.toLocaleString()} - {config.maxThb.toLocaleString()} บาท · 1 บาท ={" "}
           {config.rate} Token
         </p>
       </div>
 
+      {/* ---------- ขวา: การ์ดสรุป (ticket) ---------- */}
       <div className="rounded-2xl border-2 border-[#451A03] bg-white shadow-[6px_6px_0_#451A03]">
         <div className="space-y-3 p-6">
           <p className="text-xs font-bold">ผู้เติมเงิน · ดึงอัตโนมัติ</p>
@@ -96,6 +101,7 @@ export function TopupForm({ user, config }: { user: Me; config: TopupConfig }) {
           </div>
         </div>
 
+        {/* เส้นประ + รอยบากซ้ายขวา (วงกลมสีพื้นหลังหน้า ขอบเข้ม วางคร่อมขอบการ์ด แบบ ticket หน้า Home) */}
         <div className="relative">
           <div className="mx-6 border-t-2 border-dashed border-[#D9C49A]" />
           <span className="absolute -left-[13px] top-1/2 h-6 w-6 -translate-y-1/2 rounded-full border-2 border-[#451A03] bg-[#FFFBEB]" />
@@ -116,6 +122,7 @@ export function TopupForm({ user, config }: { user: Me; config: TopupConfig }) {
             </span>
           </div>
 
+          {/* กล่องเหลือง ยอดที่ต้องชำระ */}
           <div className="rounded-xl border-2 border-[#451A03] bg-[#F9B51F] px-4 py-3">
             <p className="text-xs font-bold">ยอดที่ต้องชำระ</p>
             <p className="font-mono text-4xl font-bold">
@@ -123,6 +130,7 @@ export function TopupForm({ user, config }: { user: Me; config: TopupConfig }) {
             </p>
           </div>
 
+          {/* error จาก backend */}
           {error && (
             <p className="rounded-xl border-2 border-[#D7263D] bg-[#FDDDE0] px-4 py-3 text-sm text-[#D7263D]">
               {error}
