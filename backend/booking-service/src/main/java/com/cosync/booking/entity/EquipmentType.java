@@ -54,6 +54,14 @@ public class EquipmentType {
         this.name = name ;
         this.isLoanable = loanable;
     }
+
+    /**
+     * ตั้งค่า fee กับ deposit  และมีการบันทึกว่าใครเป็นคนตั้งค่าใหม่
+     * โดยจะมีการเช็คก่อนว่า fee กับ deposit ติดลบไหม
+     * @param fee
+     * @param deposit
+     * @param by
+     */
     public void setPricing(BigDecimal fee,BigDecimal deposit , String by){
 
         if (fee.signum() < 0) {
