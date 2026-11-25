@@ -13,9 +13,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.cosync.booking.dto.equipment.CreateEquipmentTypeRequest;
 import com.cosync.booking.dto.equipment.EquipmentPricingRequest;
 import com.cosync.booking.dto.equipment.EquipmentTypeResponse;
+import com.cosync.booking.dto.rate.CreateEquipmentTypeRequest;
 import com.cosync.booking.security.RequirePermission;
 import com.cosync.booking.service.EquipmentTypeService;
 

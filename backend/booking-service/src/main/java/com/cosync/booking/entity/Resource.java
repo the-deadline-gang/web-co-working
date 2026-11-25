@@ -82,19 +82,75 @@ public class Resource {
     }
 
     /** โซน Day Pass: ประเภทเป็น DAY_PASS เสมอ (ไม่ต้องรับมา) และต้องมีโควตา */
+    /**
+     * ใช้สำหรับการจอง Daypass อย่างเดียว
+     * โดยจะมีการเช็คว่าใส่ค่า dailyQuota มามากกว่า 1 รึป่าว
+     * @param zone Zone ที่จะจอง
+     * @param code รหัส code
+     * @param capacity ความจุของคน
+     * @param dailyQuota จำนวนต่อวัน
+     * @param sizeSqm ขนาดตารางของ
+     * @param imageUrl รูปภาพของห้อง
+     * @return
+     */
     public static Resource dayPass(Zone zone, String code, int capacity, int dailyQuota,BigDecimal sizeSqm, String imageUrl) {
-        if (dailyQuota < 1) {
-            throw new IllegalArgumentException("Day Pass ต้องมีโควตาอย่างน้อย 1");
-        }
+        requireQuotaMatchesType(ServiceType.DAY_PASS, dailyQuota);
+    
         return new Resource(zone, code, ServiceType.DAY_PASS, capacity, dailyQuota, sizeSqm, imageUrl);
     }
 
-    /** โต๊ะหรือห้อง: ห้ามเป็น DAY_PASS และไม่มีโควตา (ไม่ต้องรับมาเลย) */
+   
+    /**
+     * การจองทุกแบบยกเว้นแบบ Daypass 
+     * โดยจะมีการเช็คด่้วยว่าเป็น Daypass รึป่าว 
+     * @param zone Zone ที่จะจอง
+     * @param code รหัส code
+     * @param serviceType ประเภทของ service 
+     * @param capacity ความจุของคน
+     * @param sizeSqm ขนาดตารางของ
+     * @param imageUrl รูปภาพของห้อง
+     * @return
+     */
     public static Resource bookable(Zone zone, String code, ServiceType serviceType, int capacity,BigDecimal sizeSqm, String imageUrl) {
         if (serviceType == ServiceType.DAY_PASS) {
             throw new IllegalArgumentException("Day Pass ให้ใช้ Resource.dayPass()");
         }
+        requireQuotaMatchesType(serviceType, null);
+      
+      
         return new Resource(zone, code, serviceType, capacity, null, sizeSqm, imageUrl);
+    }
+
+    /**
+     * เอาไว้เช็คว่าส่งข้อมูล type กับ dailyQuota ถูกไหม
+     * โดยที่ถ้า service เป็น daypass ควรจะมี dailyQuota แต่ถ้าเป็น service จะไม่ควรมี
+     * @param type
+     * @param dailyQuota
+     */
+    private static void requireQuotaMatchesType(ServiceType type, Integer dailyQuota) { 
+        if (type == ServiceType.DAY_PASS) {
+            if ( dailyQuota == null || dailyQuota < 1 ) {
+                throw new IllegalArgumentException("Day Pass ต้องมีโควตาอย่างน้อย 1");
+            }
+         
+        }else{
+            if (dailyQuota != null) {
+                throw new IllegalArgumentException("Service ตัวอื่นไม่ต้องใส่ค่า dailyQuota ");
+            }
+        }
+
+    }
+
+    public void update(Zone zone, String code, ServiceType serviceType, int capacity,Integer dailyQuota, BigDecimal sizeSqm, String imageUrl,boolean  active){
+        requireQuotaMatchesType(serviceType, dailyQuota);
+        this.zone = zone;
+        this.code = code;
+        this.serviceType = serviceType;
+        this.capacity = capacity;
+        this.dailyQuota = dailyQuota ;
+        this.sizeSqm = sizeSqm;
+        this.imageUrl = imageUrl ;
+        this.active = active;
     }
 
   

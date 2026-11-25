@@ -1,4 +1,4 @@
-package com.cosync.booking.dto.equipment;
+package com.cosync.booking.dto.rate;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

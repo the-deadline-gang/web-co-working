@@ -7,9 +7,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.cosync.booking.common.ApiException;
-import com.cosync.booking.dto.equipment.CreateEquipmentTypeRequest;
 import com.cosync.booking.dto.equipment.EquipmentPricingRequest;
 import com.cosync.booking.dto.equipment.EquipmentTypeResponse;
+import com.cosync.booking.dto.rate.CreateEquipmentTypeRequest;
 import com.cosync.booking.entity.EquipmentType;
 import com.cosync.booking.repository.EquipmentTypeRepository;
 
