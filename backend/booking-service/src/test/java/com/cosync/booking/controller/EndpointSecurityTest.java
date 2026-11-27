@@ -19,8 +19,12 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 import com.cosync.booking.security.MemberOnly;
 import com.cosync.booking.security.RequirePermission;
 import com.cosync.booking.security.StaffOnly;
+import com.cosync.booking.service.EquipmentService;
+import com.cosync.booking.service.EquipmentTypeService;
 import com.cosync.booking.service.RateService;
+import com.cosync.booking.service.ResourceService;
 import com.cosync.booking.service.SettingService;
+import com.cosync.booking.service.ZoneService;
 
 /**
  * กันลืมใส่สิทธิ์: PermissionInterceptor เป็นแบบ fail-open (ไม่มี annotation = ใครก็ผ่าน)
@@ -37,6 +41,10 @@ class EndpointSecurityTest {
 
     @MockitoBean SettingService settingService;
     @MockitoBean RateService rateService;
+    @MockitoBean ZoneService zoneService;
+    @MockitoBean EquipmentTypeService equipmentTypeService;
+    @MockitoBean ResourceService resourceService;
+    @MockitoBean EquipmentService equipmentService;
 
     /** endpoint ที่ "ตั้งใจ" ไม่มี annotation สิทธิ์ พร้อมเหตุผล (ตอนนี้ยังไม่มี จะมี /internal/** ใน B-04) */
     private static final Set<String> NO_ANNOTATION_ALLOWED = Set.of();
@@ -72,7 +80,10 @@ class EndpointSecurityTest {
     void seesAllControllers() {
         Set<String> paths = new HashSet<>();
         mapping.getHandlerMethods().forEach((info, m) -> paths.addAll(info.getPatternValues()));
-        assertTrue(paths.containsAll(Set.of("/admin/settings", "/admin/rates", "/admin/rates/{serviceType}")),
+        assertTrue(paths.containsAll(Set.of("/admin/settings", "/admin/rates", "/admin/rates/{serviceType}",
+                "/admin/zones", "/admin/equipment-types", "/admin/equipment-types/{id}/pricing",
+                "/admin/resources", "/admin/resources/{resourceId}",
+                "/admin/equipment", "/admin/equipment/{equipmentId}")),
                 "ไม่เห็นบาง endpoint: " + paths);
     }
 }

@@ -160,4 +160,47 @@ class EquipmentTest {
         assertThatThrownBy(() -> e.changeStatus(EquipmentStatus.AVAILABLE))
                 .isInstanceOf(IllegalStateException.class);
     }
+
+    // ---------------------------------------------------------------- update (B-03)
+
+    @Test
+    @DisplayName("TC-EQE-18 update ของว่าง → เปลี่ยนประเภท barcode และย้ายจาก Counter เข้าห้องได้ สถานะเดิม")
+    void update_ok() {
+        Equipment e = newEquipment();
+        EquipmentType adapter = new EquipmentType("Adapter USB-C", true);
+        Resource room = Resource.bookable(new Zone("B"), "B-ROOM-01",
+                com.cosync.booking.entity.enumtype.ServiceType.MEETING, 4, null, null);
+
+        e.update(adapter, "EQ-F-900", room);
+
+        assertThat(e.getEquipmentType()).isSameAs(adapter);
+        assertThat(e.getBarcode()).isEqualTo("EQ-F-900");
+        assertThat(e.getResource()).isSameAs(room);
+        assertThat(e.getStatus()).isEqualTo(EquipmentStatus.AVAILABLE);
+    }
+
+    @Test
+    @DisplayName("TC-EQE-19 update ของที่กำลังซ่อม → ได้ (ย้ายกลับมา Counter: resource = null)")
+    void update_maintenance() {
+        Equipment e = newEquipment();
+        e.changeStatus(EquipmentStatus.MAINTENANCE);
+
+        e.update(e.getEquipmentType(), "EQ-L-999", null);
+
+        assertThat(e.getBarcode()).isEqualTo("EQ-L-999");
+        assertThat(e.getResource()).isNull();
+        assertThat(e.getStatus()).isEqualTo(EquipmentStatus.MAINTENANCE);
+    }
+
+    @Test
+    @DisplayName("TC-EQE-20 update ของที่ถูกยืม / หาย → IllegalStateException ค่าเดิมไม่เปลี่ยน")
+    void update_borrowedOrLost() {
+        Equipment b = borrowed();
+        assertThatThrownBy(() -> b.update(b.getEquipmentType(), "NEW", null)).isInstanceOf(IllegalStateException.class);
+        assertThat(b.getBarcode()).isEqualTo("EQ-L-001");
+
+        Equipment l = lost();
+        assertThatThrownBy(() -> l.update(l.getEquipmentType(), "NEW", null)).isInstanceOf(IllegalStateException.class);
+        assertThat(l.getBarcode()).isEqualTo("EQ-L-001");
+    }
 }
