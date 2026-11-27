@@ -32,7 +32,7 @@ public class AdminEquipmentTypeController {
 
     @GetMapping()
     @RequirePermission("equipment.manage")
-    public List<EquipmentTypeResponse> listEquipment() {
+    public List<EquipmentTypeResponse> listEquipmentType() {
         return  equipmentTypeService.listEquipmentType();
     }
 

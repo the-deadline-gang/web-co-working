@@ -25,9 +25,12 @@ import org.springframework.test.util.ReflectionTestUtils;
 import com.cosync.booking.common.ApiException;
 import com.cosync.booking.dto.resource.ResourceRequest;
 import com.cosync.booking.dto.resource.ResourceResponse;
+import com.cosync.booking.entity.Equipment;
+import com.cosync.booking.entity.EquipmentType;
 import com.cosync.booking.entity.Resource;
 import com.cosync.booking.entity.Zone;
 import com.cosync.booking.entity.enumtype.ServiceType;
+import com.cosync.booking.repository.EquipmentRepository;
 import com.cosync.booking.repository.ResourceRepository;
 import com.cosync.booking.repository.ZoneRepository;
 
@@ -36,6 +39,7 @@ class ResourceServiceTest {
 
     @Mock ResourceRepository resourceRepo;
     @Mock ZoneRepository zoneRepo;
+    @Mock EquipmentRepository equipmentRepo;
 
     ResourceService service;
 
@@ -48,7 +52,7 @@ class ResourceServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ResourceService(resourceRepo, zoneRepo);
+        service = new ResourceService(resourceRepo, zoneRepo, equipmentRepo);
         zoneA = zone(200L, "A");
         zoneB = zone(300L, "B");
         dayPass = Resource.dayPass(zoneA, "A-DAYPASS", 40, 40, null, null);
@@ -151,7 +155,7 @@ class ResourceServiceTest {
     void create_dayPassWithoutQuota() {
         assertApi(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED",
                 () -> service.creatResource(request("A-DP-2", 200L, ServiceType.DAY_PASS, 30, null, null)));
-        verifyNoInteractions(zoneRepo, resourceRepo);
+        verifyNoInteractions(zoneRepo, resourceRepo, equipmentRepo);
     }
 
     @Test
@@ -159,7 +163,7 @@ class ResourceServiceTest {
     void create_deskWithQuota() {
         assertApi(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED",
                 () -> service.creatResource(request("A-DESK-09", 200L, ServiceType.DESK, 1, 5, null)));
-        verifyNoInteractions(zoneRepo, resourceRepo);
+        verifyNoInteractions(zoneRepo, resourceRepo, equipmentRepo);
     }
 
     @Test
@@ -227,5 +231,42 @@ class ResourceServiceTest {
         assertApi(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED",
                 () -> service.update(6L, request("B-DP", 300L, ServiceType.DAY_PASS, 20, null, null)));
         assertThat(room.getServiceType()).isEqualTo(ServiceType.MEETING);
+    }
+
+    // ---------------------------------------------------------------- fixedEquipment
+
+    @Test
+    @DisplayName("TC-RSC-15 list → ห้องเกมมีอุปกรณ์ประจำห้อง 3 ชิ้น ห้องอื่นว่าง")
+    void list_fixedEquipment() {
+        Resource game = Resource.bookable(zoneB, "C-GAME-01", ServiceType.GAME, 8, null, null);
+        EquipmentType tv = new EquipmentType("จอ TV 55 นิ้ว", false);
+        EquipmentType pad = new EquipmentType("จอยเกม", false);
+        when(resourceRepo.findAll()).thenReturn(List.of(room, game));
+        when(equipmentRepo.findByResource(room)).thenReturn(List.of());
+        when(equipmentRepo.findByResource(game)).thenReturn(List.of(
+                new Equipment(tv, "EQ-F-003", game),
+                new Equipment(pad, "EQ-F-101", game),
+                new Equipment(pad, "EQ-F-102", game)));
+
+        List<ResourceResponse> r = service.listResource(null, null);
+
+        assertThat(r.get(0).fixedEquipment()).isEmpty();
+        assertThat(r.get(1).fixedEquipment()).hasSize(3);
+        assertThat(r.get(1).fixedEquipment().get(0).barcode()).isEqualTo("EQ-F-003");
+        assertThat(r.get(1).fixedEquipment().get(0).typeName()).isEqualTo("จอ TV 55 นิ้ว");
+        assertThat(r.get(1).fixedEquipment().get(0).resourceCode()).isEqualTo("C-GAME-01");
+    }
+
+    @Test
+    @DisplayName("TC-RSC-16 update → response มีอุปกรณ์ประจำห้องจริง (ไม่ใช่ list ว่างตายตัว)")
+    void update_fixedEquipment() {
+        EquipmentType tv = new EquipmentType("จอ TV 55 นิ้ว", false);
+        when(resourceRepo.findById(6L)).thenReturn(Optional.of(room));
+        when(zoneRepo.findById(300L)).thenReturn(Optional.of(zoneB));
+        when(equipmentRepo.findByResource(room)).thenReturn(List.of(new Equipment(tv, "EQ-F-001", room)));
+
+        ResourceResponse r = service.update(6L, request("B-ROOM-01", 300L, ServiceType.MEETING, 6, null, null));
+
+        assertThat(r.fixedEquipment()).extracting(e -> e.barcode()).containsExactly("EQ-F-001");
     }
 }

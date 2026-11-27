@@ -7,11 +7,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.cosync.booking.common.ApiException;
+import com.cosync.booking.dto.equipment.EquipmentResponse;
 import com.cosync.booking.dto.resource.ResourceRequest;
 import com.cosync.booking.dto.resource.ResourceResponse;
 import com.cosync.booking.entity.Resource;
 import com.cosync.booking.entity.Zone;
 import com.cosync.booking.entity.enumtype.ServiceType;
+import com.cosync.booking.repository.EquipmentRepository;
 import com.cosync.booking.repository.ResourceRepository;
 import com.cosync.booking.repository.ZoneRepository;
 
@@ -21,10 +23,11 @@ import com.cosync.booking.repository.ZoneRepository;
 public class ResourceService {
     private final ResourceRepository resourceRepository;
     private final ZoneRepository zoneRepository;
-
-    public ResourceService(ResourceRepository resourceRepository,ZoneRepository zoneRepository){
+    private final EquipmentRepository equipmentRepository;
+    public ResourceService(ResourceRepository resourceRepository,ZoneRepository zoneRepository,EquipmentRepository equipmentRepository){
         this.resourceRepository = resourceRepository;
         this.zoneRepository = zoneRepository;
+        this.equipmentRepository =equipmentRepository;
     }
 
     /**
@@ -39,7 +42,7 @@ public class ResourceService {
         return  resourceRepository.findAll().stream()
                 .filter(r -> serviceType == null || r.getServiceType() == serviceType)
                 .filter(r -> zoneId == null || r.getZone().getId().equals(zoneId))
-                .map(r -> ResourceResponse.from(r, List.of()))
+                .map(r -> ResourceResponse.from(r, fixedEquipmentOf(r)))
                 .toList();
     }
 
@@ -63,7 +66,7 @@ public class ResourceService {
             resource = Resource.bookable(zone,req.code().trim(),req.serviceType(),req.capacity(),req.sizeSqm(),req.imageUrl());
         }
         resourceRepository.save(resource);
-        return ResourceResponse.from(resource, List.of());
+        return ResourceResponse.from(resource, fixedEquipmentOf(resource));
     }
 
     /**
@@ -82,9 +85,14 @@ public class ResourceService {
         boolean active = req.isActive() != null ? req.isActive() : resource.isActive();
         resource.update(zone, req.code().trim(), req.serviceType(), req.capacity(), req.dailyQuota(), req.sizeSqm(), req.imageUrl(), active);
 
-        return ResourceResponse.from(resource,  List.of());
+        return ResourceResponse.from(resource, fixedEquipmentOf(resource));
     }
 
+    /**
+     * เอาไว้เช็คว่า Quota ที่มีเป็นของ daypass นั้นมีไหมแล้ว
+     * ถ้าเป็นแบบห้องหรือโต๊ะก็ไม่ควรจะมี Quota
+     * @param req คำขอในรูปแบบ ResourceRequest 
+     */
     private static void checkQuota(ResourceRequest req) {
         boolean isDayPass = req.serviceType() == ServiceType.DAY_PASS;
         boolean hasQuota  = req.dailyQuota() != null;
@@ -95,6 +103,16 @@ public class ResourceService {
         if (!isDayPass && hasQuota) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "ห้องหรือโต๊ะไม่มีโควตารายวัน");
         }
+    }
+
+
+    /**
+     * เอาไว้คนหาอุปกรณ์ในห้องนั้น
+     * @param r รับเข้ามาเป็น Entity Resource
+     * @return ส่งกลับแบบ EquipmentResponse ที่เป็น list
+     */
+    private List<EquipmentResponse> fixedEquipmentOf(Resource r) {
+        return equipmentRepository.findByResource(r).stream().map(EquipmentResponse::from).toList();
     }
   
 }

@@ -61,6 +61,20 @@ public class Equipment {
         this.resource = resource;
     }
 
+    /** 
+     * เอาไว้ update ข้อมูลของ Equipment
+     * @param type ประเภทของ Equipment
+     * @param barcode barcode ของ Equipment
+     * @param resource  Resource
+     */
+    public void update(EquipmentType type, String barcode, Resource resource){
+        requireStatus("update", EquipmentStatus.AVAILABLE, EquipmentStatus.MAINTENANCE);
+        this.equipmentType = type;
+        this.resource = resource;
+        this.barcode = barcode;
+
+    }
+
 
     /**
      * เอาไว้เปลี่ยน status ว่าอุปกรณ์นี้ถูกยืม
